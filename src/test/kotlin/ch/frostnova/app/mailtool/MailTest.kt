@@ -2,6 +2,7 @@ package ch.frostnova.app.mailtool
 
 import ch.frostnova.app.mailtool.config.ConfigurationProperties
 import ch.frostnova.app.mailtool.config.readConfigProperties
+import ch.frostnova.app.mailtool.connector.MailConnector
 import ch.frostnova.app.mailtool.util.validate
 import jakarta.mail.FetchProfile
 import jakarta.mail.Folder

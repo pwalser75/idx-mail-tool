@@ -1,5 +1,6 @@
-package ch.frostnova.app.mailtool
+package ch.frostnova.app.mailtool.connector
 
+import ch.frostnova.app.mailtool.connector.MailAdapter
 import ch.frostnova.app.mailtool.config.AccountProperties
 import jakarta.mail.Session
 import java.util.Properties

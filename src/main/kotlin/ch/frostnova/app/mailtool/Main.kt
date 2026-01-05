@@ -1,49 +1,44 @@
 package ch.frostnova.app.mailtool
 
+import ch.frostnova.app.mailtool.config.ConfigurationProperties
 import ch.frostnova.app.mailtool.config.readConfigProperties
 import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_BLUE
 import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_BOLD
 import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_CYAN
 import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_GREEN
+import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_RED
 import ch.frostnova.app.mailtool.util.ansiFormat
-import ch.frostnova.app.mailtool.util.validate
-
+import kotlin.system.exitProcess
 
 fun main(vararg args: String) {
     printLogo()
-    printUsage()
-    val configurationProperties = readConfigProperties()?.also { validate(it) }
-    configurationProperties?.accounts?.forEach { (account, properties) ->
-        println("Account: $account")
-        MailConnector.connect(properties).use { mailAdapter ->
-            mailAdapter.listFolders().forEach { folder ->
-                if (folder.parent != null) {
-                    println("- ${folder.name} (${folder.fullName})")
-                }
-            }
-        }
+    if (args.size != 1) {
+        printUsage()
+        exitProcess(1)
+    }
+    try {
+        val arg = args[0]
+        val command = command(arg) ?: throw IllegalArgumentException("Unknown command: $arg")
+        val configuration = readConfigProperties() ?: ConfigurationProperties()
+        MailTool(configuration).run(command)
+
+    } catch (ex: Exception) {
+        println("${ex.javaClass.simpleName.ansiFormat(ANSI_BOLD, ANSI_RED)} - ${ex.message?.ansiFormat(ANSI_RED)}")
+        printUsage()
+        exitProcess(1)
     }
 }
 
 private fun printLogo() {
-    println("---------------".ansiFormat(ANSI_BLUE))
-    println(" Idx Mail Tool".ansiFormat(ANSI_BOLD, ANSI_BLUE))
-    println("---------------".ansiFormat(ANSI_BOLD, ANSI_BLUE))
+    println("> IDX Mail Tool".trimIndent().ansiFormat(ANSI_BOLD, ANSI_BLUE))
 }
 
 private fun printUsage() {
     println("Usage:")
     println("java -jar idx-mail-tool.jar [command]".ansiFormat(ANSI_BOLD, ANSI_CYAN))
     println("\nCommands:")
-    val commands = mapOf(
-        "setup" to "Setup IMAP connector",
-        "folders" to "List all folders",
-        "mails" to "List all mails",
-        "rules" to "List all rules",
-        "apply" to "Apply all rules (default)"
-    )
-    commands.forEach { (command, description) ->
-        println("- ${command.ansiFormat(ANSI_BOLD, ANSI_GREEN)}: $description")
+    Command.entries.forEach { command ->
+        println("- ${command.name.lowercase().ansiFormat(ANSI_BOLD, ANSI_GREEN)}: ${command.description}")
     }
     println()
 }
