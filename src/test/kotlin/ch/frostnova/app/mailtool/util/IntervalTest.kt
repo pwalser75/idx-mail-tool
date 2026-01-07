@@ -35,6 +35,18 @@ class IntervalTest {
     }
 
     @Test
+    fun `should recognize empty interval`() {
+        assertThat(Interval().isEmpty()).isTrue
+        assertThat(Interval(0).isEmpty()).isTrue
+        assertThat(Interval(0, 0).isEmpty()).isTrue
+        assertThat(Interval(0, 0, 0).isEmpty()).isTrue
+
+        assertThat(Interval(1).isEmpty()).isFalse
+        assertThat(Interval(0, 1).isEmpty()).isFalse
+        assertThat(Interval(0, 0, 1).isEmpty()).isFalse
+    }
+
+    @Test
     fun `should parse interval`() {
         assertThat(parse("")).hasToString("")
         assertThat(parse("0")).hasToString("")

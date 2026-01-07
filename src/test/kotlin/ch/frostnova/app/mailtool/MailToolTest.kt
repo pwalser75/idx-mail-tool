@@ -28,4 +28,9 @@ class MailToolTest {
     fun listRules() {
         mailTool.run(Command.RULES)
     }
+
+    @Test
+    fun applyRules() {
+        mailTool.run(Command.APPLY)
+    }
 }
