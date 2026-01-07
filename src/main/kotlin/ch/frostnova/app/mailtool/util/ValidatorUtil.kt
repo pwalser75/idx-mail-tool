@@ -12,16 +12,10 @@ fun validate(any: Any) {
     else validator.validate(any))
 
     if (constraintViolations.isNotEmpty()) {
-        throw ValidationException(constraintViolations.joinToString("\n") { "${it.propertyPath}: (${it.invalidValue}) ${it.message}" })
-    }
-}
-
-fun validateWithLogging(any: Any) {
-    try {
-        validate(any)
-    } catch (ex: ValidationException) {
-        System.err.println("Invalid data: \n${ex.message}")
-        throw ex
+        throw ValidationException(
+            constraintViolations
+                .sortedBy { it.propertyPath.toString() }
+                .joinToString("\n") { "${it.propertyPath}: (${it.invalidValue}) ${it.message}" })
     }
 }
 
