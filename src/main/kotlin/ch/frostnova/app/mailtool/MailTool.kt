@@ -46,7 +46,6 @@ class MailTool(val configuration: ConfigurationProperties) {
             RULES -> listRules()
             APPLY -> applyRules()
         }
-        println("done.")
     }
 
     private fun setup() {
@@ -196,6 +195,7 @@ class MailTool(val configuration: ConfigurationProperties) {
                 }
             }
         }
+        println("done.")
     }
 
     private fun firstMatchingRule(acountProperties: AccountProperties, message: Message): MailRule? =
