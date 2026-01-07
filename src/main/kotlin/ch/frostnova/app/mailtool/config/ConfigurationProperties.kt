@@ -40,13 +40,13 @@ class AccountProperties {
     var password: String? = null
 
     @Valid
-    var dataRetention: List<DataRetentionProperties> = emptyList()
+    var dataRetention: List<DataRetentionSettings> = emptyList()
 
     @Valid
     var rules: List<MailRule> = emptyList()
 }
 
-class DataRetentionProperties {
+class DataRetentionSettings {
     @NotBlank
     var folder: String? = null
 

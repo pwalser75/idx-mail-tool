@@ -10,14 +10,15 @@ class MailAdapter(private val store: Store) : AutoCloseable by store {
     fun listFolders(): List<Folder> {
         val result = mutableListOf<Folder>()
         traverse(store.defaultFolder) { folder ->
-            result.add(folder)
+            if (folder.parent != null) {
+                result.add(folder)
+            }
         }
         return result
     }
 
     fun listMessages(folder: Folder): List<Message> {
         if (folder.parent == null) return emptyList()
-        folder.open(Folder.READ_WRITE)
 
         val messages = folder.messages
 

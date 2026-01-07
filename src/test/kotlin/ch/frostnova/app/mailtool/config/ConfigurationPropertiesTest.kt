@@ -45,15 +45,15 @@ class ConfigurationPropertiesTest {
                 }
             )
             dataRetention = listOf(
-                DataRetentionProperties().apply {
+                DataRetentionSettings().apply {
                     folder = "Inbox"
                     retentionPeriod = Interval(365)
                 },
-                DataRetentionProperties().apply {
+                DataRetentionSettings().apply {
                     folder = "Sent"
                     retentionPeriod = Interval(90)
                 },
-                DataRetentionProperties().apply {
+                DataRetentionSettings().apply {
                     folder = "Spam"
                     retentionPeriod = Interval(0, 23, 59, 59)
                 }
@@ -83,7 +83,7 @@ class ConfigurationPropertiesTest {
                     }
                 )
                 dataRetention = listOf(
-                    DataRetentionProperties()
+                    DataRetentionSettings()
                 )
             })
         }

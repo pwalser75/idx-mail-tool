@@ -46,6 +46,7 @@ class MailTool(val configuration: ConfigurationProperties) {
             RULES -> listRules()
             APPLY -> applyRules()
         }
+        println("done.")
     }
 
     private fun setup() {
@@ -71,8 +72,11 @@ class MailTool(val configuration: ConfigurationProperties) {
             MailConnector.connect(properties).use { mailAdapter ->
                 mailAdapter.listFolders().forEach { folder ->
                     println("Folder: ${folder.name} (${folder.fullName})")
-                    mailAdapter.listMessages(folder).forEach {
-                        println("- ${messageInfo(it)}")
+                    folder.use {
+                        folder.open(Folder.READ_ONLY)
+                        mailAdapter.listMessages(folder).forEach {
+                            println("- ${messageInfo(it)}")
+                        }
                     }
                 }
             }
@@ -85,8 +89,11 @@ class MailTool(val configuration: ConfigurationProperties) {
             val senders = SetWithCount<Address>()
             MailConnector.connect(properties).use { mailAdapter ->
                 mailAdapter.listFolders().forEach { folder ->
-                    mailAdapter.listMessages(folder).forEach { message ->
-                        message.from.forEach { sender -> senders.add(sender) }
+                    folder.use {
+                        folder.open(Folder.READ_ONLY)
+                        mailAdapter.listMessages(folder).forEach { message ->
+                            message.from.forEach { sender -> senders.add(sender) }
+                        }
                     }
                 }
             }
@@ -134,6 +141,7 @@ class MailTool(val configuration: ConfigurationProperties) {
                 MailConnector.connect(properties).use { mailAdapter ->
                     val folders = mailAdapter.listFolders()
                     folders.forEach { folder ->
+                        folder.open(Folder.READ_WRITE)
                         val messages = mailAdapter.listMessages(folder)
 
                         // Apply message rules
@@ -167,10 +175,23 @@ class MailTool(val configuration: ConfigurationProperties) {
                                 }
                             }
                         }
-
-                        // Apply retention policies
-                        
                     }
+
+                    // Apply retention policies
+
+                    properties.dataRetention.forEach { dataRetention ->
+                        val deleteBefore = Instant.now().minus(dataRetention.retentionPeriod!!.toDuration())
+                        firstMatchingFolder(folders, dataRetention.folder!!)?.let { folder ->
+                            mailAdapter.listMessages(folder).forEach { message ->
+                                if (message.sentDate.toInstant().isBefore(deleteBefore)) {
+                                    println("> delete ${messageInfo(message)} from folder \"${folder.fullName}\"")
+                                    message.setFlag(Flags.Flag.DELETED, true)
+                                }
+                            }
+                        }
+                    }
+
+                    // finally, close all folders
                     folders.forEach { if (it.isOpen) it.close() }
                 }
             }
