@@ -9,7 +9,7 @@ import jakarta.mail.Folder
 import org.junit.jupiter.api.Test
 
 class MailTest {
-    val configurationProperties = readConfigProperties()?.also { validate(it) } ?: ConfigurationProperties()
+    private val configurationProperties = readConfigProperties()?.also { validate(it) } ?: ConfigurationProperties()
 
     @Test
     fun listFolders() {
@@ -48,6 +48,20 @@ class MailTest {
                         messages.forEach {
                             println("- ${it.receivedDate.toInstant()} | ${it.subject} | ${it.from.joinToString(",")}, ${it.size} bytes")
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun listRules() {
+        configurationProperties.accounts.forEach { (account, properties) ->
+            println("Account: $account")
+            MailConnector.connect(properties).use { mailAdapter ->
+                mailAdapter.listFolders().forEach { folder ->
+                    if (folder.parent != null) {
+                        println("- ${folder.name} (${folder.fullName})")
                     }
                 }
             }
