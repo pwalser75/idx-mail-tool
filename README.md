@@ -35,7 +35,7 @@ Commands:
 - folders: List all folders
 - mails: List all mails
 - rules: List all rules
-- apply: Apply all rules (default)
+- apply: Apply all rules
 ```
 
 ## Configuration
