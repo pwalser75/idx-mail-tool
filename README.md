@@ -40,8 +40,26 @@ Commands:
 
 ## Configuration
 
-The configuration is stored locally in the user home directory, as a YAML file.
-Hint: you can set up multiple accounts, each with their dedicated settings.
+The configuration is stored locally in the user home directory, as a YAML file named `.idx-mail-tool.yaml`.
+
+Root config element is `accounts`, with a map of an account name (key) and properties.
+
+### Connection properties
+
+- `host`: mail host name or IP
+- `port`: mail host IMAP port
+- `tls-enabled`: whether TLS (SSL) is enabled (default: true)
+- `username`: IMAP account username
+- `password`: IMAP account password
+- `data-retention`: List of data retention settings
+- `data-retention.[*].folder`: Folder name (or part, case-insensitive) for which the settings apply
+- `data-retention.[*].retention-period`: For how long the messages in that folder should be retained (eligible for
+  deletion if older), as days (d), hours (h), minutes (m) and seconds (s), e.g. _90d_ or _1d 12h 30m_
+- `rules`: List of mail rules to apply
+- `rules.[*].senders`: List of senders (or part, case-insensitive) to select the affected messages
+- `rules.[*].action`: One of `MOVE` (move the message into another folder), `COPY` (copy the message into another
+  folder) or `DELETE` (immediately delete the message)
+- `rules.[*].folder`: Target folder name (or part, case-insensitive) for the `MOVE` and `COPY` actions
 
 Example:
 
@@ -53,6 +71,52 @@ accounts:
     tls-enabled: true
     username: "user@somehost.org"
     password: "Secret#007"
+    data-retention:
+      - folder: Sent
+        retention-period: 3650d
+      - folder: Spam
+        retention-period: 21d
+      - folder: Drafts
+        retention-period: 10d
+    rules:
+      - senders: swica.ch, generali.com, mobiliar.ch
+        action: MOVE
+        folder: Insurance
+      - senders:
+          - digitec.ch
+          - galaxus.ch
+          - paypal.ch
+          - migros.ch
+        action: MOVE
+        folder: Shopping
+      - senders: opportunity@business-offer.com
+        action: DELETE
+```
+
+The rules can be described with
+
+```bash
+java -jar target/idx-mail-tool.jar rules
+```
+
+Output:
+
+```bash
+Account: default
+- Rules:
+  - Mails from sender "swica.ch", "generali.com", "mobiliar.ch" will be moved to folder "Insurance"
+  - Mails from sender "digitec.ch", "galaxus.ch", "paypal.ch", "migros.ch" will be moved to folder "Shopping"
+  - Mails from sender "opportunity@business-offer.com" will be deleted
+- Data retention rules:
+  - Mails in folder "Sent" will be deleted after 3650d (any before 2016-01-15T13:44:57Z)
+  - Mails in folder "Spam" will be deleted after 21d (any before 2025-12-22T13:44:57Z)
+  - Mails in folder "Drafts" will be deleted after 10d (any before 2026-01-02T13:44:57Z)
+```
+
+To apply/execute the rules, execute:
+
+```bash
+java -jar target/idx-mail-tool.jar apply
 ```
 
 ## Build
