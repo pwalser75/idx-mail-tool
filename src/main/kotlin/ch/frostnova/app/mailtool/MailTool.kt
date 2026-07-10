@@ -12,22 +12,32 @@ import ch.frostnova.app.mailtool.config.MailRule
 import ch.frostnova.app.mailtool.config.MailRuleAction.COPY
 import ch.frostnova.app.mailtool.config.MailRuleAction.DELETE
 import ch.frostnova.app.mailtool.config.MailRuleAction.MOVE
+import ch.frostnova.app.mailtool.connector.Console
 import ch.frostnova.app.mailtool.connector.MailConnector
+import ch.frostnova.app.mailtool.util.AnsiEscapeCode
+import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_BLUE
+import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_BOLD
+import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_CYAN
 import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_GRAY
 import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_ORANGE
+import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_RED
+import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_YELLOW
 import ch.frostnova.app.mailtool.util.SetWithCount
 import ch.frostnova.app.mailtool.util.add
 import ch.frostnova.app.mailtool.util.ansiFormat
 import ch.frostnova.app.mailtool.util.topItems
 import ch.frostnova.app.mailtool.util.validate
-import jakarta.mail.Address
 import jakarta.mail.Flags
 import jakarta.mail.Folder
 import jakarta.mail.Message
 import java.time.Instant
 import java.time.temporal.ChronoUnit.SECONDS
 
-class MailTool(val configuration: ConfigurationProperties) {
+class MailTool(
+    private val connector: MailConnector,
+    private val configuration: ConfigurationProperties,
+    private val console: Console
+) {
 
     init {
         validate(configuration)
@@ -35,7 +45,7 @@ class MailTool(val configuration: ConfigurationProperties) {
 
     fun run(command: Command) {
         if (configuration.accounts.isEmpty()) {
-            println("No accounts configured yet".ansiFormat(ANSI_ORANGE))
+            console.output("No accounts configured yet".ansiFormat(ANSI_ORANGE))
         }
 
         when (command) {
@@ -49,16 +59,16 @@ class MailTool(val configuration: ConfigurationProperties) {
     }
 
     private fun setup() {
-
+        console.output("Setup: not yet implemented")
     }
 
     private fun listFolders() {
         configuration.accounts.forEach { (account, properties) ->
-            println("Account: $account")
-            MailConnector.connect(properties).use { mailAdapter ->
+            console.output("Account: $account")
+            connector.connect(properties).use { mailAdapter ->
                 mailAdapter.listFolders().forEach { folder ->
                     if (folder.parent != null) {
-                        println("- ${folder.name} (${folder.fullName})")
+                        console.output("- ${folder.name} (${folder.fullName})")
                     }
                 }
             }
@@ -67,14 +77,15 @@ class MailTool(val configuration: ConfigurationProperties) {
 
     private fun listMails() {
         configuration.accounts.forEach { (account, properties) ->
-            println("Account: $account")
-            MailConnector.connect(properties).use { mailAdapter ->
+            console.output("Account: $account")
+            connector.connect(properties).use { mailAdapter ->
                 mailAdapter.listFolders().forEach { folder ->
-                    println("Folder: ${folder.name} (${folder.fullName})")
+                    console.output("Folder: ${folder.name} (${folder.fullName})".ansiFormat(ANSI_BOLD, ANSI_BLUE))
                     folder.use {
                         folder.open(Folder.READ_ONLY)
-                        mailAdapter.listMessages(folder).forEach {
-                            println("- ${messageInfo(it)}")
+                        mailAdapter.listMessages(folder).forEach { message ->
+                            console.output("- ${message.formatSubject()}")
+                            console.output("  ${message.formatDetails()}")
                         }
                     }
                 }
@@ -84,31 +95,31 @@ class MailTool(val configuration: ConfigurationProperties) {
 
     private fun listSenders() {
         configuration.accounts.forEach { (account, properties) ->
-            println("Account: $account")
-            val senders = SetWithCount<Address>()
-            MailConnector.connect(properties).use { mailAdapter ->
+            console.output("Account: $account")
+            val senders = SetWithCount<String>()
+            connector.connect(properties).use { mailAdapter ->
                 mailAdapter.listFolders().forEach { folder ->
                     folder.use {
                         folder.open(Folder.READ_ONLY)
                         mailAdapter.listMessages(folder).forEach { message ->
-                            message.from.forEach { sender -> senders.add(sender) }
+                            message.from.forEach { sender -> senders.add(sender.toString()) }
                         }
                     }
                 }
             }
             senders.topItems().forEach { (count, address) ->
-                println("${count}x $address")
+                console.output("${count}x $address")
             }
         }
     }
 
     private fun listRules() {
         configuration.accounts.forEach { (account, properties) ->
-            println("Account: $account")
+            console.output("Account: $account")
             if (properties.rules.isEmpty()) {
-                println("- No rules configured yet".ansiFormat(ANSI_GRAY))
+                console.output("- No rules configured yet".ansiFormat(ANSI_GRAY))
             } else {
-                println("- Rules:")
+                console.output("- Rules:")
                 properties.rules.forEach { rule ->
                     val action = when (rule.action) {
                         MOVE -> "moved to folder \"${rule.folder}\""
@@ -116,15 +127,15 @@ class MailTool(val configuration: ConfigurationProperties) {
                         DELETE -> "deleted"
                         else -> "ignored"
                     }
-                    println("  - Mails from sender ${rule.senders.joinToString(", ") { "\"$it\"" }} will be $action")
+                    console.output("  - Mails from sender ${rule.senders.joinToString(", ") { "\"$it\"" }} will be $action")
                 }
             }
             if (properties.dataRetention.isEmpty()) {
-                println("- No data retention rules configured yet".ansiFormat(ANSI_GRAY))
+                console.output("- No data retention rules configured yet".ansiFormat(ANSI_GRAY))
             } else {
-                println("- Data retention rules:")
+                console.output("- Data retention rules:")
                 properties.dataRetention.forEach { rule ->
-                    println(
+                    console.output(
                         "  - Mails in folder \"${rule.folder}\" will be deleted after ${rule.retentionPeriod} (any before ${
                             (Instant.now().minus(rule.retentionPeriod!!.toDuration()).truncatedTo(SECONDS))
                         })"
@@ -137,7 +148,7 @@ class MailTool(val configuration: ConfigurationProperties) {
     private fun applyRules() {
         configuration.accounts.forEach { (_, properties) ->
             if (properties.rules.isNotEmpty() || properties.dataRetention.isNotEmpty()) {
-                MailConnector.connect(properties).use { mailAdapter ->
+                connector.connect(properties).use { mailAdapter ->
                     val folders = mailAdapter.listFolders()
                     folders.forEach { folder ->
                         folder.open(Folder.READ_WRITE)
@@ -150,7 +161,12 @@ class MailTool(val configuration: ConfigurationProperties) {
                                 when (rule.action) {
                                     MOVE -> {
                                         if (folder != message.folder) {
-                                            println("> move ${messageInfo(message)} to folder \"${folder?.fullName}\"")
+                                            console.output(
+                                                "> move \"${message.subject}\" to folder \"${folder?.fullName}\"".ansiFormat(
+                                                    ANSI_BOLD, ANSI_ORANGE
+                                                )
+                                            )
+                                            console.output("  ${message.formatDetails()}")
                                             message.folder.copyMessages(arrayOf(message), folder)
                                             message.setFlag(Flags.Flag.DELETED, true)
                                         }
@@ -158,13 +174,23 @@ class MailTool(val configuration: ConfigurationProperties) {
 
                                     COPY -> {
                                         if (folder != message.folder) {
-                                            println("> copy ${messageInfo(message)} to folder \"${folder?.fullName}\"")
+                                            console.output(
+                                                "> copy \"${message.subject}\" to folder \"${folder?.fullName}\"".ansiFormat(
+                                                    ANSI_BOLD, ANSI_YELLOW
+                                                )
+                                            )
+                                            console.output("  ${message.formatDetails()}")
                                             message.folder.copyMessages(arrayOf(message), folder)
                                         }
                                     }
 
                                     DELETE -> {
-                                        println("> delete ${messageInfo(message)}")
+                                        console.output(
+                                            "> delete \"${message.subject}\"".ansiFormat(
+                                                ANSI_BOLD, ANSI_RED
+                                            )
+                                        )
+                                        console.output("  ${message.formatDetails()}")
                                         message.setFlag(Flags.Flag.DELETED, true)
                                     }
 
@@ -183,7 +209,13 @@ class MailTool(val configuration: ConfigurationProperties) {
                         firstMatchingFolder(folders, dataRetention.folder!!)?.let { folder ->
                             mailAdapter.listMessages(folder).forEach { message ->
                                 if (message.sentDate.toInstant().isBefore(deleteBefore)) {
-                                    println("> delete ${messageInfo(message)} from folder \"${folder.fullName}\"")
+                                    console.output(
+                                        "> delete from folder \"${folder.fullName}\"".ansiFormat(
+                                            ANSI_BOLD, ANSI_RED
+                                        )
+                                    )
+                                    console.output("  ${message.formatSubject()}")
+                                    console.output("  ${message.formatDetails()}")
                                     message.setFlag(Flags.Flag.DELETED, true)
                                 }
                             }
@@ -195,7 +227,7 @@ class MailTool(val configuration: ConfigurationProperties) {
                 }
             }
         }
-        println("done.")
+        console.output("done.")
     }
 
     private fun firstMatchingRule(acountProperties: AccountProperties, message: Message): MailRule? =
@@ -208,6 +240,9 @@ class MailTool(val configuration: ConfigurationProperties) {
     private fun firstMatchingFolder(folders: Collection<Folder>, name: String): Folder? =
         folders.firstOrNull { folder -> folder.name.contains(name, ignoreCase = true) }
 
-    private fun messageInfo(message: Message) =
-        "\"${message.subject}\" (on ${message.receivedDate.toInstant()} from ${message.from.joinToString(",")}, ${message.size} bytes)"
+    fun Message.formatSubject(color: AnsiEscapeCode = ANSI_CYAN) =
+        (subject ?: "<no subject>").ansiFormat(ANSI_BOLD, color)
+
+    fun Message.formatDetails() = "on ${receivedDate.toInstant()} from ".ansiFormat(ANSI_GRAY) +
+            from.joinToString(",").ansiFormat(ANSI_BOLD) + " , $size bytes".ansiFormat(ANSI_GRAY)
 }

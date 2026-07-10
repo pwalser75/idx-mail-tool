@@ -39,11 +39,9 @@ class AccountProperties {
     @NotBlank
     var password: String? = null
 
-    @Valid
-    var dataRetention: List<DataRetentionSettings> = emptyList()
+    var dataRetention: List<@Valid DataRetentionSettings> = emptyList()
 
-    @Valid
-    var rules: List<MailRule> = emptyList()
+    var rules: List<@Valid MailRule> = emptyList()
 }
 
 class DataRetentionSettings {

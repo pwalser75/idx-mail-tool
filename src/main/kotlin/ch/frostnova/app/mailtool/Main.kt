@@ -2,6 +2,8 @@ package ch.frostnova.app.mailtool
 
 import ch.frostnova.app.mailtool.config.ConfigurationProperties
 import ch.frostnova.app.mailtool.config.readConfigProperties
+import ch.frostnova.app.mailtool.connector.StandardConsole
+import ch.frostnova.app.mailtool.connector.impl.MailConnectorImpl
 import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_BLUE
 import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_BOLD
 import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_CYAN
@@ -20,10 +22,13 @@ fun main(vararg args: String) {
         val arg = args[0]
         val command = command(arg) ?: throw IllegalArgumentException("Unknown command: $arg")
         val configuration = readConfigProperties() ?: ConfigurationProperties()
-        MailTool(configuration).run(command)
+        val connector = MailConnectorImpl()
+        val console = StandardConsole()
+        MailTool(connector, configuration, console).run(command)
 
     } catch (ex: Exception) {
         println("${ex.javaClass.simpleName.ansiFormat(ANSI_BOLD, ANSI_RED)} - ${ex.message?.ansiFormat(ANSI_RED)}")
+        ex.printStackTrace()
         printUsage()
         exitProcess(1)
     }
