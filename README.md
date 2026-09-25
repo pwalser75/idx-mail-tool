@@ -1,166 +1,72 @@
 # Idx Mail Tool
 
-(!) Incubation project - not yet finished.
+A small, self-contained tool for organising IMAP mailboxes: define mail-sorting rules and folder retention
+policies in a local configuration, then apply them to your account.
 
-## Description
+![IDX Mail Tool setup UI](screenshot.png)
 
-I got sick and tired of setting up mail rules in different e-mail clients (mobile, Linux, Windows),
-so I decided to create a tiny little tool that helps me organize my email.
+## Features
 
-Features:
+- **Setup UI** — a dark-themed Swing interface (English, German, French, Italian) to configure the connection,
+  rules and retention policies.
+- **Mail rules** — move, copy or delete incoming messages based on the sender.
+- **Retention policies** — delete messages from a folder after a configurable period.
+- **Folders overview** — message counts, retention and the rules targeting each folder.
+- **Apply** — run all configured rules and retention policies against the mailbox.
 
-- Listing folders and mails of an IMAP account
-- Defining retention policies for IMAP folders (after which time messages should be deleted in a folder)
-- Defining rules to sort incoming messages into folders, and apply these rules.
-- A dark-themed Swing setup UI to configure the connection, the mail rules and the data retention policies.
+## Requirements
+
+Java 17 or newer.
+
+## Build
+
+```bash
+mvn
+```
+
+Creates the executable, self-contained JAR at `target/idx-mail-tool.jar`.
 
 ## Usage
 
-The generated shadow JAR file is an executable, self-contained Java command line tool, which you can run with:
-
 ```bash
-java -jar target/idx-mail-tool.jar
+java -jar target/idx-mail-tool.jar <command>
 ```
 
-If no configuration file exists yet (`~/.idx-mail-tool.yaml`), the tool automatically starts the `setup` GUI,
-even when no command argument is provided.
+| Command | Description                                                              |
+|---------|--------------------------------------------------------------------------|
+| `setup` | Open the setup UI (started automatically when no configuration exists)   |
+| `apply` | Apply all rules and retention policies                                   |
 
-If you run it with an unknown command (e.g. `help`) or the incorrect number of arguments, it will reveal its usage
-information:
-
-```bash
-java -jar idx-mail-tool.jar help
-
-Usage:
-java -jar idx-mail-tool.jar [command]
-
-Commands:
-- setup: Setup IMAP connector
-- folders: List all folders
-- mails: List all mails
-- senders: List all senders
-- rules: List all rules
-- apply: Apply all rules
-```
-
-## Setup UI
-
-Run the setup UI with:
-
-```bash
-java -jar target/idx-mail-tool.jar setup
-```
-
-The window uses a split view: the configuration sections are listed on the left, and the editor for the
-selected section is shown on the right.
-
-Sections:
-
-- **Connection**: configure protocol, host, port, TLS, username and password, and test the IMAP connectivity.
-- **Folders**: browse the folders on the server, showing each folder's message count, its retention period and the rules targeting it (refreshed over the connection).
-- **Mail rules**: add, edit and remove rules that move, copy or delete incoming messages based on the sender.
-- **Data retention**: add, edit and remove retention periods (in days) after which messages in a folder are deleted.
-
-The configuration is validated before it is written to `~/.idx-mail-tool.yaml`. The window is closed with the
-`✕` button in the top-right corner; if there are unsaved changes, you are asked whether to apply them
-(Yes / No / Cancel). The undecorated window can be moved by dragging the sidebar header and resized by dragging
-its edges or corners.
-
-When choosing a target folder for a rule or a retention policy, an editable drop-down offers the folders
-discovered on the server (loaded via the Folders section, or in the background on startup). Folder references are
-case-insensitive partial names, so you can also type a name that does not exist (yet) or no longer exists.
-
-### Languages
-
-The setup UI is available in English, German, French and Italian. It starts in the user's language (falling back to
-English for unsupported languages) and can be switched at runtime with the language drop-down in the top-right corner.
+Running without a valid command prints the usage information.
 
 ## Configuration
 
-The configuration is stored locally in the user home directory, as a YAML file named `.idx-mail-tool.yaml`.
-
-Root config element is `accounts`, with a map of an account name (key) and properties.
-
-### Connection properties
-
-- `host`: mail host name or IP
-- `port`: mail host IMAP port
-- `tls-enabled`: whether TLS (SSL) is enabled (default: true)
-- `username`: IMAP account username
-- `password`: IMAP account password
-- `data-retention`: List of data retention settings
-- `data-retention.[*].folder`: Folder name (or part, case-insensitive) for which the settings apply
-- `data-retention.[*].retention-period`: For how long the messages in that folder should be retained (eligible for
-  deletion if older), as days (d), hours (h), minutes (m) and seconds (s), e.g. _90d_ or _1d 12h 30m_
-- `rules`: List of mail rules to apply
-- `rules.[*].senders`: List of senders (or part, case-insensitive) to select the affected messages
-- `rules.[*].action`: One of `MOVE` (move the message into another folder), `COPY` (copy the message into another
-  folder) or `DELETE` (immediately delete the message)
-- `rules.[*].folder`: Target folder name (or part, case-insensitive) for the `MOVE` and `COPY` actions
-
-Example:
+The configuration is stored in `~/.idx-mail-tool.yaml` and is normally maintained through the setup UI. It maps
+account names to connection settings, mail rules and retention policies:
 
 ```yaml
 accounts:
   default:
-    host: mail.somehost.org
+    host: mail.example.org
     port: 993
     tls-enabled: true
-    username: "user@somehost.org"
-    password: "Secret#007"
+    username: user@example.org
+    password: secret
+    rules:
+      - senders: insurance.com, bank.com
+        action: MOVE
+        folder: Finance
+      - senders: newsletter@example.com
+        action: DELETE
     data-retention:
-      - folder: Sent
-        retention-period: 3650d
       - folder: Spam
         retention-period: 21d
-      - folder: Drafts
-        retention-period: 10d
-    rules:
-      - senders: swica.ch, generali.com, mobiliar.ch
-        action: MOVE
-        folder: Insurance
-      - senders:
-          - digitec.ch
-          - galaxus.ch
-          - paypal.ch
-          - migros.ch
-        action: MOVE
-        folder: Shopping
-      - senders: opportunity@business-offer.com
-        action: DELETE
 ```
 
-The rules can be described with
+- `rules.[*].action` is `MOVE`, `COPY` or `DELETE`.
+- `rules.[*].folder` is the target folder (case-insensitive partial name).
+- `data-retention.[*].retention-period` is a duration such as `90d` or `1d 12h`.
 
-```bash
-java -jar target/idx-mail-tool.jar rules
-```
+## License
 
-Output:
-
-```bash
-Account: default
-- Rules:
-  - Mails from sender "swica.ch", "generali.com", "mobiliar.ch" will be moved to folder "Insurance"
-  - Mails from sender "digitec.ch", "galaxus.ch", "paypal.ch", "migros.ch" will be moved to folder "Shopping"
-  - Mails from sender "opportunity@business-offer.com" will be deleted
-- Data retention rules:
-  - Mails in folder "Sent" will be deleted after 3650d (any before 2016-01-15T13:44:57Z)
-  - Mails in folder "Spam" will be deleted after 21d (any before 2025-12-22T13:44:57Z)
-  - Mails in folder "Drafts" will be deleted after 10d (any before 2026-01-02T13:44:57Z)
-```
-
-To apply/execute the rules, execute:
-
-```bash
-java -jar target/idx-mail-tool.jar apply
-```
-
-## Build
-
-To build this project with Maven (default tasks: _clean install_):
-
-    mvn
-
-The executable `idx-mail-tool.jar` can then be found in the `target` folder.
-
+See [LICENSE](LICENSE).
