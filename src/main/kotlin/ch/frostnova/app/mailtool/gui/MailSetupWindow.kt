@@ -20,6 +20,8 @@ import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
 import java.awt.Point
+import java.awt.event.InputEvent
+import java.awt.event.KeyEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.event.MouseMotionAdapter
@@ -31,15 +33,18 @@ import javax.swing.BorderFactory
 import javax.swing.DefaultListCellRenderer
 import javax.swing.JButton
 import javax.swing.JComboBox
+import javax.swing.JComponent
 import javax.swing.JFrame
 import javax.swing.JLabel
 import javax.swing.JList
 import javax.swing.JOptionPane
 import javax.swing.JPanel
 import javax.swing.JSplitPane
+import javax.swing.KeyStroke
 import javax.swing.ListCellRenderer
 import javax.swing.ListSelectionModel
 import javax.swing.SwingUtilities
+import javax.swing.Timer
 import javax.swing.border.EmptyBorder
 import kotlin.system.exitProcess
 
@@ -108,6 +113,12 @@ class MailSetupWindow private constructor(
 
     private var switchingLocale = false
 
+    private val dirtyLabel = JLabel(I18n.t("window.unsaved")).apply {
+        font = Theme.LABEL_FONT.deriveFont(Font.BOLD)
+        foreground = Theme.WARNING
+        isVisible = false
+    }
+
     init {
         isUndecorated = true
         defaultCloseOperation = DO_NOTHING_ON_CLOSE
@@ -154,6 +165,7 @@ class MailSetupWindow private constructor(
 
         val topControls = JPanel(FlowLayout(FlowLayout.RIGHT, 10, 0)).apply {
             background = Theme.BACKGROUND
+            add(dirtyLabel)
             add(languageCombo)
             add(closeButton)
         }
@@ -241,6 +253,40 @@ class MailSetupWindow private constructor(
         rootPane.glassPane = WindowResizer(this)
         rootPane.glassPane.isVisible = true
         folderPanel.preload()
+
+        registerShortcuts()
+        updateDirtyIndicator()
+        Timer(800) {
+            updateDirtyIndicator()
+        }.apply {
+            isRepeats = true
+            start()
+        }
+    }
+
+    private fun registerShortcuts() {
+        rootPane.registerKeyboardAction(
+            { saveConfiguration() },
+            KeyStroke.getKeyStroke(KeyEvent.VK_S, InputEvent.CTRL_DOWN_MASK),
+            JComponent.WHEN_IN_FOCUSED_WINDOW
+        )
+        rootPane.registerKeyboardAction(
+            { newEntry() },
+            KeyStroke.getKeyStroke(KeyEvent.VK_N, InputEvent.CTRL_DOWN_MASK),
+            JComponent.WHEN_IN_FOCUSED_WINDOW
+        )
+    }
+
+    private fun newEntry() {
+        when (currentSection) {
+            SetupSection.RULES -> rulesPanel.addNew()
+            SetupSection.RETENTION -> retentionPanel.addNew()
+            else -> Unit
+        }
+    }
+
+    private fun updateDirtyIndicator() {
+        dirtyLabel.isVisible = isDirty()
     }
 
     private fun currentAccount(): AccountProperties = AccountProperties().apply {
@@ -308,6 +354,8 @@ class MailSetupWindow private constructor(
             originalAccountName = accountName
             savedAccountName = accountName
             savedAccount = account
+            updateDirtyIndicator()
+            Toast.show(rootPane, I18n.t("status.saved"))
             true
         } catch (ex: Exception) {
             JOptionPane.showMessageDialog(this, ex.message, I18n.t("save.error.title"), JOptionPane.ERROR_MESSAGE)

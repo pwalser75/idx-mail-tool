@@ -17,11 +17,13 @@ object Theme {
     val BACKGROUND = Color(0x1E1F22)
     val SURFACE = Color(0x2B2D30)
     val SURFACE_ALT = Color(0x33363A)
+    val HOVER = Color(0x3A3E43)
     val BORDER = Color(0x3C3F41)
     val FAINT = Color(0x55595F)
     val TEXT = Color(0xDFE1E5)
     val MUTED = Color(0x9DA0A8)
     val SUCCESS = Color(0x5FB878)
+    val WARNING = Color(0xE8C46A)
     val DANGER = Color(0xE06C75)
 
     val TITLE_FONT: Font = Font(Font.SANS_SERIF, Font.BOLD, 20)

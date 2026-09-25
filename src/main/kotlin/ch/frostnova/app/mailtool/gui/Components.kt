@@ -216,23 +216,3 @@ fun JSpinner.commitValue(): Boolean = try {
 fun JComboBox<*>.editorText(): String =
     (editor.item?.toString() ?: selectedItem?.toString()).orEmpty().trim()
 
-/**
- * Table cell renderer that shows the full cell value as a tooltip.
- */
-class TooltipCellRenderer : javax.swing.table.DefaultTableCellRenderer() {
-    override fun getTableCellRendererComponent(
-        table: javax.swing.JTable?,
-        value: Any?,
-        isSelected: Boolean,
-        hasFocus: Boolean,
-        row: Int,
-        column: Int
-    ): java.awt.Component {
-        val component = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column)
-        if (component is JLabel) {
-            component.toolTipText = value?.toString()
-            component.border = EmptyBorder(0, 8, 0, 8)
-        }
-        return component
-    }
-}

@@ -6,7 +6,7 @@ import ch.frostnova.app.mailtool.gui.IconType
 import ch.frostnova.app.mailtool.gui.RetentionValue
 import ch.frostnova.app.mailtool.gui.TableCard
 import ch.frostnova.app.mailtool.gui.Theme
-import ch.frostnova.app.mailtool.gui.TooltipCellRenderer
+import ch.frostnova.app.mailtool.gui.enableRowStyling
 import ch.frostnova.app.mailtool.gui.card
 import ch.frostnova.app.mailtool.gui.dialog.RetentionDialog
 import ch.frostnova.app.mailtool.gui.editIcon
@@ -61,9 +61,9 @@ class RetentionPanel(private val folderNames: () -> List<String>) : JPanel(Borde
             rowHeight = 30
             fillsViewportHeight = true
             selectionModel.selectionMode = ListSelectionModel.SINGLE_SELECTION
-            setDefaultRenderer(Any::class.java, TooltipCellRenderer())
             border = BorderFactory.createEmptyBorder()
         }
+        table.enableRowStyling()
         table.columnModel.getColumn(0).preferredWidth = 320
         table.columnModel.getColumn(1).preferredWidth = 180
         table.autoCreateRowSorter = true
@@ -116,6 +116,11 @@ class RetentionPanel(private val folderNames: () -> List<String>) : JPanel(Borde
     }
 
     fun retentionSettings(): List<DataRetentionSettings> = settings.toList()
+
+    /** Opens the editor to add a new retention rule (also triggered by Ctrl+N). */
+    fun addNew() {
+        addSetting()
+    }
 
     private fun addSetting() {
         val dialog = RetentionDialog(windowOwner(), null, folderNames)

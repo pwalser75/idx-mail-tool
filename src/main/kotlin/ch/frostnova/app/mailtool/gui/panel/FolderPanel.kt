@@ -11,26 +11,38 @@ import ch.frostnova.app.mailtool.gui.RetentionValue
 import ch.frostnova.app.mailtool.gui.TableCard
 import ch.frostnova.app.mailtool.gui.Theme
 import ch.frostnova.app.mailtool.gui.card
+import ch.frostnova.app.mailtool.gui.enableRowStyling
 import ch.frostnova.app.mailtool.gui.primaryButton
 import ch.frostnova.app.mailtool.gui.retentionLabel
 import ch.frostnova.app.mailtool.gui.sectionHeader
 import ch.frostnova.app.mailtool.gui.statusLabel
+import ch.frostnova.app.mailtool.gui.textField
 import ch.frostnova.app.mailtool.i18n.I18n
 import ch.frostnova.app.mailtool.util.validate
 import jakarta.mail.Folder
 import jakarta.validation.ValidationException
 import java.awt.BorderLayout
+import java.awt.Dimension
 import java.awt.FlowLayout
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.util.regex.Pattern
 import javax.swing.BorderFactory
 import javax.swing.JOptionPane
 import javax.swing.JPanel
+import javax.swing.JProgressBar
 import javax.swing.JTable
 import javax.swing.ListSelectionModel
+import javax.swing.RowFilter
 import javax.swing.RowSorter
 import javax.swing.SortOrder
 import javax.swing.SwingWorker
 import javax.swing.border.EmptyBorder
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
 import javax.swing.table.AbstractTableModel
+import javax.swing.table.TableRowSorter
 
 private data class FolderCount(val name: String, val fullName: String, val messageCount: Int?)
 
@@ -60,9 +72,23 @@ class FolderPanel(
     private val table = JTable(model)
     private val statusLabel = statusLabel()
     private val refreshButton = primaryButton(I18n.t("folders.refresh")) { refresh() }
+    private val progressBar = JProgressBar().apply {
+        isIndeterminate = true
+        isVisible = false
+        preferredSize = Dimension(90, 6)
+    }
+    private val filterField = textField(18, I18n.t("folders.filter")).apply {
+        preferredSize = Dimension(200, preferredSize.height)
+        document.addDocumentListener(object : DocumentListener {
+            override fun insertUpdate(event: DocumentEvent) = applyFilter()
+            override fun removeUpdate(event: DocumentEvent) = applyFilter()
+            override fun changedUpdate(event: DocumentEvent) = applyFilter()
+        })
+    }
 
     private var loaded = false
     private var loading = false
+    private var lastLoadedAt = 0L
 
     init {
         background = Theme.BACKGROUND
@@ -78,9 +104,9 @@ class FolderPanel(
             rowHeight = 30
             fillsViewportHeight = true
             selectionModel.selectionMode = ListSelectionModel.SINGLE_SELECTION
-            setDefaultRenderer(Any::class.java, FoldersCellRenderer())
             border = BorderFactory.createEmptyBorder()
         }
+        table.enableRowStyling()
         table.columnModel.getColumn(0).preferredWidth = 300
         table.columnModel.getColumn(1).preferredWidth = 100
         table.columnModel.getColumn(2).preferredWidth = 150
@@ -92,7 +118,9 @@ class FolderPanel(
             background = Theme.SURFACE
             border = EmptyBorder(0, 20, 0, 20)
             add(refreshButton)
+            add(progressBar)
             add(statusLabel)
+            add(filterField)
         }
 
         val tableCard = TableCard(
@@ -120,9 +148,11 @@ class FolderPanel(
         // not a configuration editor
     }
 
-    /** Loads the folders once, when the section is shown for the first time. */
+    /** Loads the folders the first time the section is shown, and refreshes stale data. */
     fun ensureLoaded() {
-        if (!loaded && !loading) {
+        if (loading) return
+        val stale = loaded && System.currentTimeMillis() - lastLoadedAt > STALE_AFTER_MS
+        if (!loaded || stale) {
             refresh()
         }
     }
@@ -144,6 +174,7 @@ class FolderPanel(
 
         loading = true
         refreshButton.isEnabled = false
+        progressBar.isVisible = true
         statusLabel.foreground = Theme.MUTED
         statusLabel.text = I18n.t("folders.loading")
 
@@ -153,11 +184,13 @@ class FolderPanel(
             override fun done() {
                 loading = false
                 refreshButton.isEnabled = true
+                progressBar.isVisible = false
                 try {
                     val counts = get()
                     applyCounts(counts)
                     statusLabel.foreground = Theme.SUCCESS
-                    statusLabel.text = I18n.t("folders.loaded", counts.size)
+                    statusLabel.text = I18n.t("folders.loaded", counts.size) + " · " +
+                            I18n.t("folders.refreshedAt", currentTime())
                 } catch (ex: Exception) {
                     val cause = ex.cause ?: ex
                     statusLabel.foreground = Theme.DANGER
@@ -205,6 +238,16 @@ class FolderPanel(
         folderNamesProvider.update(counts.map { it.name })
         model.setFolders(counts.map { toRow(it) })
         loaded = true
+        lastLoadedAt = System.currentTimeMillis()
+    }
+
+    private fun currentTime(): String =
+        LocalTime.now().format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(I18n.locale))
+
+    private fun applyFilter() {
+        val sorter = table.rowSorter as? TableRowSorter<*> ?: return
+        val text = filterField.text.trim()
+        sorter.rowFilter = if (text.isEmpty()) null else RowFilter.regexFilter("(?i)" + Pattern.quote(text))
     }
 
     private fun countMessages(folder: Folder): FolderCount {
@@ -232,6 +275,10 @@ class FolderPanel(
         val retention = retentionValueFor(folder.name, retentionSupplier())
         val rules = rulesFor(folder.name, rulesSupplier())
         return FolderRow(folder.name, folder.fullName, folder.messageCount, retention, rules)
+    }
+
+    private companion object {
+        const val STALE_AFTER_MS = 120_000L
     }
 }
 
@@ -303,27 +350,5 @@ private class FoldersTableModel : AbstractTableModel() {
     companion object {
         /** Sentinel for folders whose message count is not available. */
         const val UNKNOWN_COUNT = -1
-    }
-}
-
-private class FoldersCellRenderer : javax.swing.table.DefaultTableCellRenderer() {
-    override fun getTableCellRendererComponent(
-        table: JTable?,
-        value: Any?,
-        isSelected: Boolean,
-        hasFocus: Boolean,
-        row: Int,
-        column: Int
-    ): java.awt.Component {
-        val component = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column)
-        if (component is javax.swing.JLabel) {
-            val display = if (column == 1 && value is Int && value < 0) "\u2013" else value?.toString().orEmpty()
-            component.text = display
-            component.toolTipText = display
-            component.border = EmptyBorder(0, 8, 0, 8)
-            component.horizontalAlignment =
-                if (column == 1) javax.swing.SwingConstants.RIGHT else javax.swing.SwingConstants.LEFT
-        }
-        return component
     }
 }
