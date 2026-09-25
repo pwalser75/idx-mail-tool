@@ -2,6 +2,9 @@ package ch.frostnova.app.mailtool.gui.panel
 
 import ch.frostnova.app.mailtool.config.AccountProperties
 import ch.frostnova.app.mailtool.config.MailRule
+import ch.frostnova.app.mailtool.gui.ActionChipRenderer
+import ch.frostnova.app.mailtool.gui.IconType
+import ch.frostnova.app.mailtool.gui.TableCard
 import ch.frostnova.app.mailtool.gui.Theme
 import ch.frostnova.app.mailtool.gui.TooltipCellRenderer
 import ch.frostnova.app.mailtool.gui.card
@@ -23,7 +26,6 @@ import javax.swing.AbstractAction
 import javax.swing.BorderFactory
 import javax.swing.JOptionPane
 import javax.swing.JPanel
-import javax.swing.JScrollPane
 import javax.swing.JTable
 import javax.swing.KeyStroke
 import javax.swing.ListSelectionModel
@@ -41,6 +43,9 @@ class RulesPanel(private val folderNames: () -> List<String>) : JPanel(BorderLay
     private val rules = mutableListOf<MailRule>()
     private val model = RulesTableModel()
     private val table = JTable(model)
+
+    private val editButton = secondaryButton(I18n.t("rules.edit"), editIcon(Theme.TEXT)) { editRule() }
+    private val removeButton = secondaryButton(I18n.t("rules.remove"), trashIcon(Theme.TEXT)) { removeRule() }
 
     init {
         background = Theme.BACKGROUND
@@ -62,6 +67,7 @@ class RulesPanel(private val folderNames: () -> List<String>) : JPanel(BorderLay
         table.columnModel.getColumn(0).preferredWidth = 320
         table.columnModel.getColumn(1).preferredWidth = 90
         table.columnModel.getColumn(2).preferredWidth = 180
+        table.columnModel.getColumn(1).cellRenderer = ActionChipRenderer()
         table.autoCreateRowSorter = true
         table.rowSorter.sortKeys = listOf(RowSorter.SortKey(0, SortOrder.ASCENDING))
         table.addMouseListener(object : MouseAdapter() {
@@ -78,19 +84,23 @@ class RulesPanel(private val folderNames: () -> List<String>) : JPanel(BorderLay
             background = Theme.SURFACE
             border = EmptyBorder(0, 20, 0, 20)
             add(primaryButton(I18n.t("rules.add"), plusIcon(Theme.ON_ACCENT)) { addRule() })
-            add(secondaryButton(I18n.t("rules.edit"), editIcon(Theme.TEXT)) { editRule() })
-            add(secondaryButton(I18n.t("rules.remove"), trashIcon(Theme.TEXT)) { removeRule() })
+            add(editButton)
+            add(removeButton)
         }
+        updateSelectionActions()
+        table.selectionModel.addListSelectionListener { updateSelectionActions() }
 
-        val scrollPane = JScrollPane(table).apply {
-            border = BorderFactory.createEmptyBorder()
-            viewport.background = Theme.SURFACE
-        }
+        val tableCard = TableCard(
+            table,
+            IconType.FILTER,
+            I18n.t("rules.empty"),
+            I18n.t("rules.add")
+        ) { addRule() }
 
         val body = JPanel(BorderLayout()).apply {
             background = Theme.SURFACE
             add(toolbar, BorderLayout.NORTH)
-            add(scrollPane, BorderLayout.CENTER)
+            add(tableCard, BorderLayout.CENTER)
         }
 
         add(sectionHeader(I18n.t("rules.header"), I18n.t("rules.header.description")), BorderLayout.NORTH)
@@ -161,6 +171,12 @@ class RulesPanel(private val folderNames: () -> List<String>) : JPanel(BorderLay
                 table.setRowSelectionInterval(viewRow, viewRow)
             }
         }
+    }
+
+    private fun updateSelectionActions() {
+        val hasSelection = table.selectedRow >= 0
+        editButton.isEnabled = hasSelection
+        removeButton.isEnabled = hasSelection
     }
 
     private fun windowOwner() = SwingUtilities.getWindowAncestor(this)

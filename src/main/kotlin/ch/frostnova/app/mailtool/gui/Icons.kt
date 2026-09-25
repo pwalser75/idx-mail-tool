@@ -6,13 +6,19 @@ import java.awt.Component
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.RenderingHints
+import java.awt.geom.Ellipse2D
+import java.awt.geom.Line2D
 import java.awt.geom.Path2D
 import javax.swing.Icon
 
 enum class IconType {
     PLUS,
     EDIT,
-    TRASH
+    TRASH,
+    LINK,
+    FOLDER,
+    FILTER,
+    CLOCK
 }
 
 /**
@@ -40,10 +46,18 @@ class VectorIcon(
                 IconType.PLUS -> drawPlus(g)
                 IconType.EDIT -> drawEdit(g)
                 IconType.TRASH -> drawTrash(g)
+                IconType.LINK -> drawLink(g)
+                IconType.FOLDER -> drawFolder(g)
+                IconType.FILTER -> drawFilter(g)
+                IconType.CLOCK -> drawClock(g)
             }
         } finally {
             g.dispose()
         }
+    }
+
+    private fun outline(g: Graphics2D) {
+        g.stroke = BasicStroke(1.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
     }
 
     private fun drawPlus(g: Graphics2D) {
@@ -53,7 +67,7 @@ class VectorIcon(
     }
 
     private fun drawEdit(g: Graphics2D) {
-        g.stroke = BasicStroke(1.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
+        outline(g)
         val tip = Path2D.Float().apply {
             moveTo(3.2f, 12.8f)
             lineTo(7.7f, 10.9f)
@@ -72,7 +86,7 @@ class VectorIcon(
     }
 
     private fun drawTrash(g: Graphics2D) {
-        g.stroke = BasicStroke(1.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
+        outline(g)
         g.drawLine(3, 4, 13, 4)
         val handle = Path2D.Float().apply {
             moveTo(6.3f, 4f)
@@ -92,6 +106,55 @@ class VectorIcon(
         g.draw(body)
         g.drawLine(7, 7, 7, 12)
         g.drawLine(9, 7, 9, 12)
+    }
+
+    /** A globe, representing the server connection. */
+    private fun drawLink(g: Graphics2D) {
+        outline(g)
+        val r = 5.4f
+        val cx = 8f
+        val cy = 8f
+        g.draw(Ellipse2D.Float(cx - r, cy - r, 2 * r, 2 * r))
+        g.draw(Ellipse2D.Float(cx - r / 2, cy - r, r, 2 * r))
+        g.draw(Line2D.Float(cx - r, cy, cx + r, cy))
+    }
+
+    /** A folder with a tab. */
+    private fun drawFolder(g: Graphics2D) {
+        outline(g)
+        val path = Path2D.Float().apply {
+            moveTo(2.6f, 12.8f)
+            lineTo(2.6f, 4.4f)
+            lineTo(6.2f, 4.4f)
+            lineTo(7.6f, 6.4f)
+            lineTo(13.4f, 6.4f)
+            lineTo(13.4f, 12.8f)
+            closePath()
+        }
+        g.draw(path)
+    }
+
+    /** A funnel, representing filtering/sorting rules. */
+    private fun drawFilter(g: Graphics2D) {
+        outline(g)
+        val path = Path2D.Float().apply {
+            moveTo(2.5f, 3.6f)
+            lineTo(13.5f, 3.6f)
+            lineTo(9.5f, 8.5f)
+            lineTo(9.5f, 13.0f)
+            lineTo(6.5f, 13.0f)
+            lineTo(6.5f, 8.5f)
+            closePath()
+        }
+        g.draw(path)
+    }
+
+    /** A clock, representing retention time. */
+    private fun drawClock(g: Graphics2D) {
+        outline(g)
+        g.draw(Ellipse2D.Float(2.6f, 2.6f, 10.8f, 10.8f))
+        g.draw(Line2D.Float(8f, 8f, 8f, 4.7f))
+        g.draw(Line2D.Float(8f, 8f, 10.6f, 9.4f))
     }
 }
 

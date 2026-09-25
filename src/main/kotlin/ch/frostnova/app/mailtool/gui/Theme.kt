@@ -18,6 +18,7 @@ object Theme {
     val SURFACE = Color(0x2B2D30)
     val SURFACE_ALT = Color(0x33363A)
     val BORDER = Color(0x3C3F41)
+    val FAINT = Color(0x55595F)
     val TEXT = Color(0xDFE1E5)
     val MUTED = Color(0x9DA0A8)
     val SUCCESS = Color(0x5FB878)

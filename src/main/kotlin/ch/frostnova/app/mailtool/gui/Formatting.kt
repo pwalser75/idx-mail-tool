@@ -15,3 +15,21 @@ fun retentionLabel(period: Interval?): String {
         period.toString()
     }
 }
+
+/**
+ * Table cell value for a retention period that sorts by the actual duration
+ * (not alphabetically by its formatted label) while rendering as "x days".
+ */
+class RetentionValue(val label: String, private val seconds: Long) : Comparable<RetentionValue> {
+
+    constructor(period: Interval?) : this(retentionLabel(period), period?.toDuration()?.seconds ?: Long.MIN_VALUE)
+
+    override fun compareTo(other: RetentionValue): Int = seconds.compareTo(other.seconds)
+
+    override fun toString(): String = label
+
+    override fun equals(other: Any?): Boolean =
+        other is RetentionValue && other.label == label && other.seconds == seconds
+
+    override fun hashCode(): Int = 31 * label.hashCode() + seconds.hashCode()
+}

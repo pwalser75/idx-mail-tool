@@ -60,11 +60,11 @@ class MailSetupWindow private constructor(
         onSave: (ConfigurationProperties) -> Unit
     ) : this(configuration, connector, onSave, SetupState.initial(configuration))
 
-    private enum class SetupSection(val titleKey: String, val descriptionKey: String) {
-        CONNECTION("section.connection.title", "section.connection.description"),
-        FOLDERS("section.folders.title", "section.folders.description"),
-        RULES("section.rules.title", "section.rules.description"),
-        RETENTION("section.retention.title", "section.retention.description")
+    private enum class SetupSection(val titleKey: String, val descriptionKey: String, val icon: IconType) {
+        CONNECTION("section.connection.title", "section.connection.description", IconType.LINK),
+        FOLDERS("section.folders.title", "section.folders.description", IconType.FOLDER),
+        RULES("section.rules.title", "section.rules.description", IconType.FILTER),
+        RETENTION("section.retention.title", "section.retention.description", IconType.CLOCK)
     }
 
     private class SetupState(
@@ -388,13 +388,19 @@ class MailSetupWindow private constructor(
 
     private class SectionRenderer : JPanel(BorderLayout()), ListCellRenderer<SetupSection> {
 
+        private val iconLabel = JLabel()
         private val titleLabel = JLabel().apply { font = Theme.SECTION_FONT }
         private val descriptionLabel = JLabel().apply { font = Theme.SUBTITLE_FONT }
+        private val text = JPanel(BorderLayout()).apply {
+            isOpaque = false
+            add(titleLabel, BorderLayout.NORTH)
+            add(descriptionLabel, BorderLayout.CENTER)
+        }
 
         init {
             border = EmptyBorder(10, 12, 10, 12)
-            add(titleLabel, BorderLayout.NORTH)
-            add(descriptionLabel, BorderLayout.CENTER)
+            add(iconLabel, BorderLayout.WEST)
+            add(text, BorderLayout.CENTER)
         }
 
         override fun getListCellRendererComponent(
@@ -408,6 +414,8 @@ class MailSetupWindow private constructor(
             descriptionLabel.text = value?.let { I18n.t(it.descriptionKey) }.orEmpty()
             titleLabel.foreground = Theme.TEXT
             descriptionLabel.foreground = if (isSelected) Theme.TEXT else Theme.MUTED
+            iconLabel.icon = value?.let { VectorIcon(it.icon, if (isSelected) Theme.ACCENT else Theme.MUTED, 18) }
+            iconLabel.border = EmptyBorder(0, 0, 0, 10)
             background = if (isSelected) Theme.ACCENT_DARK else Theme.SURFACE
             return this
         }

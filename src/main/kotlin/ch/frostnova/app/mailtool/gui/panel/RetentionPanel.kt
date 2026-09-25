@@ -2,6 +2,9 @@ package ch.frostnova.app.mailtool.gui.panel
 
 import ch.frostnova.app.mailtool.config.AccountProperties
 import ch.frostnova.app.mailtool.config.DataRetentionSettings
+import ch.frostnova.app.mailtool.gui.IconType
+import ch.frostnova.app.mailtool.gui.RetentionValue
+import ch.frostnova.app.mailtool.gui.TableCard
 import ch.frostnova.app.mailtool.gui.Theme
 import ch.frostnova.app.mailtool.gui.TooltipCellRenderer
 import ch.frostnova.app.mailtool.gui.card
@@ -9,7 +12,6 @@ import ch.frostnova.app.mailtool.gui.dialog.RetentionDialog
 import ch.frostnova.app.mailtool.gui.editIcon
 import ch.frostnova.app.mailtool.gui.plusIcon
 import ch.frostnova.app.mailtool.gui.primaryButton
-import ch.frostnova.app.mailtool.gui.retentionLabel
 import ch.frostnova.app.mailtool.gui.secondaryButton
 import ch.frostnova.app.mailtool.gui.sectionHeader
 import ch.frostnova.app.mailtool.gui.trashIcon
@@ -24,7 +26,6 @@ import javax.swing.AbstractAction
 import javax.swing.BorderFactory
 import javax.swing.JOptionPane
 import javax.swing.JPanel
-import javax.swing.JScrollPane
 import javax.swing.JTable
 import javax.swing.KeyStroke
 import javax.swing.ListSelectionModel
@@ -42,6 +43,9 @@ class RetentionPanel(private val folderNames: () -> List<String>) : JPanel(Borde
     private val settings = mutableListOf<DataRetentionSettings>()
     private val model = RetentionTableModel()
     private val table = JTable(model)
+
+    private val editButton = secondaryButton(I18n.t("retention.edit"), editIcon(Theme.TEXT)) { editSetting() }
+    private val removeButton = secondaryButton(I18n.t("retention.remove"), trashIcon(Theme.TEXT)) { removeSetting() }
 
     init {
         background = Theme.BACKGROUND
@@ -78,19 +82,23 @@ class RetentionPanel(private val folderNames: () -> List<String>) : JPanel(Borde
             background = Theme.SURFACE
             border = EmptyBorder(0, 20, 0, 20)
             add(primaryButton(I18n.t("retention.add"), plusIcon(Theme.ON_ACCENT)) { addSetting() })
-            add(secondaryButton(I18n.t("retention.edit"), editIcon(Theme.TEXT)) { editSetting() })
-            add(secondaryButton(I18n.t("retention.remove"), trashIcon(Theme.TEXT)) { removeSetting() })
+            add(editButton)
+            add(removeButton)
         }
+        updateSelectionActions()
+        table.selectionModel.addListSelectionListener { updateSelectionActions() }
 
-        val scrollPane = JScrollPane(table).apply {
-            border = BorderFactory.createEmptyBorder()
-            viewport.background = Theme.SURFACE
-        }
+        val tableCard = TableCard(
+            table,
+            IconType.CLOCK,
+            I18n.t("retention.empty"),
+            I18n.t("retention.add")
+        ) { addSetting() }
 
         val body = JPanel(BorderLayout()).apply {
             background = Theme.SURFACE
             add(toolbar, BorderLayout.NORTH)
-            add(scrollPane, BorderLayout.CENTER)
+            add(tableCard, BorderLayout.CENTER)
         }
 
         add(sectionHeader(I18n.t("retention.header"), I18n.t("retention.header.description")), BorderLayout.NORTH)
@@ -163,6 +171,12 @@ class RetentionPanel(private val folderNames: () -> List<String>) : JPanel(Borde
         }
     }
 
+    private fun updateSelectionActions() {
+        val hasSelection = table.selectedRow >= 0
+        editButton.isEnabled = hasSelection
+        removeButton.isEnabled = hasSelection
+    }
+
     private fun windowOwner() = SwingUtilities.getWindowAncestor(this)
 }
 
@@ -184,11 +198,14 @@ private class RetentionTableModel : AbstractTableModel() {
     override fun getColumnName(column: Int): String = columns[column]
     override fun isCellEditable(row: Int, column: Int): Boolean = false
 
+    override fun getColumnClass(columnIndex: Int): Class<*> =
+        if (columnIndex == 1) RetentionValue::class.java else String::class.java
+
     override fun getValueAt(row: Int, column: Int): Any {
         val setting = rows[row]
         return when (column) {
             0 -> setting.folder.orEmpty()
-            else -> retentionLabel(setting.retentionPeriod)
+            else -> RetentionValue(setting.retentionPeriod)
         }
     }
 }

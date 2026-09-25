@@ -2,22 +2,29 @@ package ch.frostnova.app.mailtool.gui.panel
 
 import ch.frostnova.app.mailtool.config.AccountProperties
 import ch.frostnova.app.mailtool.connector.MailConnector
+import ch.frostnova.app.mailtool.gui.DotIcon
 import ch.frostnova.app.mailtool.gui.FormPanel
+import ch.frostnova.app.mailtool.gui.PillLabel
 import ch.frostnova.app.mailtool.gui.Theme
 import ch.frostnova.app.mailtool.gui.card
 import ch.frostnova.app.mailtool.gui.commitValue
 import ch.frostnova.app.mailtool.gui.primaryButton
 import ch.frostnova.app.mailtool.gui.sectionHeader
-import ch.frostnova.app.mailtool.gui.statusLabel
 import ch.frostnova.app.mailtool.gui.textField
 import ch.frostnova.app.mailtool.i18n.I18n
 import ch.frostnova.app.mailtool.util.validate
+import com.formdev.flatlaf.FlatClientProperties
 import jakarta.validation.ValidationException
 import java.awt.BorderLayout
+import java.awt.Color
 import java.awt.Dimension
 import java.awt.FlowLayout
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import javax.swing.JCheckBox
 import javax.swing.JComboBox
+import javax.swing.JLabel
 import javax.swing.JOptionPane
 import javax.swing.JPanel
 import javax.swing.JPasswordField
@@ -46,9 +53,14 @@ class ConnectionPanel(private val connector: MailConnector) : JPanel(BorderLayou
     private val usernameField = textField(28, I18n.t("connection.username.placeholder"))
     private val passwordField = JPasswordField(28).apply {
         font = Theme.LABEL_FONT
+        putClientProperty(FlatClientProperties.STYLE, "showRevealButton: true")
     }
 
-    private val statusLabel = statusLabel()
+    private val statusPill = PillLabel()
+    private val statusDetail = JLabel(" ").apply {
+        font = Theme.LABEL_FONT
+        foreground = Theme.MUTED
+    }
     private val testButton = primaryButton(I18n.t("connection.test")) { testConnection() }
 
     var accountName: String
@@ -71,11 +83,12 @@ class ConnectionPanel(private val connector: MailConnector) : JPanel(BorderLayou
             row(I18n.t("connection.password"), passwordField)
         }
 
-        val testBar = JPanel(FlowLayout(FlowLayout.LEADING, 12, 0)).apply {
+        val testBar = JPanel(FlowLayout(FlowLayout.LEADING, 12, 4)).apply {
             background = Theme.SURFACE
             border = EmptyBorder(0, 24, 20, 24)
             add(testButton)
-            add(statusLabel)
+            add(statusPill)
+            add(statusDetail)
         }
 
         val cardContent = JPanel(BorderLayout()).apply {
@@ -91,6 +104,8 @@ class ConnectionPanel(private val connector: MailConnector) : JPanel(BorderLayou
 
         add(sectionHeader(I18n.t("connection.header"), I18n.t("connection.header.description")), BorderLayout.NORTH)
         add(cardHolder, BorderLayout.CENTER)
+
+        setStatus(Status.UNTESTED, " ")
     }
 
     override fun load(account: AccountProperties) {
@@ -100,7 +115,7 @@ class ConnectionPanel(private val connector: MailConnector) : JPanel(BorderLayou
         tlsCheck.isSelected = account.tlsEnabled
         usernameField.text = account.username.orEmpty()
         passwordField.text = account.password.orEmpty()
-        statusLabel.text = " "
+        setStatus(Status.UNTESTED, " ")
     }
 
     override fun readInto(account: AccountProperties) {
@@ -129,8 +144,7 @@ class ConnectionPanel(private val connector: MailConnector) : JPanel(BorderLayou
         }
 
         testButton.isEnabled = false
-        statusLabel.foreground = Theme.MUTED
-        statusLabel.text = I18n.t("connection.connecting", properties.host.orEmpty(), properties.port)
+        setStatus(Status.TESTING, I18n.t("connection.connecting", properties.host.orEmpty(), properties.port))
 
         object : SwingWorker<Int, Void>() {
             override fun doInBackground(): Int =
@@ -140,12 +154,14 @@ class ConnectionPanel(private val connector: MailConnector) : JPanel(BorderLayou
                 testButton.isEnabled = true
                 try {
                     val folderCount = get()
-                    statusLabel.foreground = Theme.SUCCESS
-                    statusLabel.text = I18n.t("connection.success", folderCount)
+                    setStatus(
+                        Status.CONNECTED,
+                        I18n.t("connection.success", folderCount) + " · " +
+                                I18n.t("connection.lastTested", currentTime())
+                    )
                 } catch (ex: Exception) {
                     val cause = ex.cause ?: ex
-                    statusLabel.foreground = Theme.DANGER
-                    statusLabel.text = I18n.t("connection.failed", cause.message ?: cause.toString())
+                    setStatus(Status.FAILED, cause.message ?: cause.toString())
                     JOptionPane.showMessageDialog(
                         this@ConnectionPanel,
                         cause.message ?: cause.toString(),
@@ -155,5 +171,23 @@ class ConnectionPanel(private val connector: MailConnector) : JPanel(BorderLayou
                 }
             }
         }.execute()
+    }
+
+    private fun setStatus(status: Status, detail: String) {
+        statusPill.text = I18n.t(status.key)
+        statusPill.pillColor = status.background
+        statusPill.foreground = status.foreground
+        statusPill.icon = DotIcon(status.dot, 8)
+        statusDetail.text = detail
+    }
+
+    private fun currentTime(): String =
+        LocalTime.now().format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(I18n.locale))
+
+    private enum class Status(val key: String, val background: Color, val foreground: Color, val dot: Color) {
+        UNTESTED("connection.status.untested", Theme.SURFACE_ALT, Theme.MUTED, Theme.MUTED),
+        TESTING("connection.status.testing", Color(0x4A3D1E), Color(0xE8C46A), Color(0xE8C46A)),
+        CONNECTED("connection.status.connected", Color(0x24402C), Color(0x7FD194), Color(0x5FB878)),
+        FAILED("connection.status.failed", Color(0x4E2A2E), Color(0xF0A6AE), Color(0xE06C75))
     }
 }

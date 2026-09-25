@@ -6,6 +6,9 @@ import ch.frostnova.app.mailtool.config.MailRule
 import ch.frostnova.app.mailtool.config.MailRuleAction
 import ch.frostnova.app.mailtool.connector.MailConnector
 import ch.frostnova.app.mailtool.gui.FolderNamesProvider
+import ch.frostnova.app.mailtool.gui.IconType
+import ch.frostnova.app.mailtool.gui.RetentionValue
+import ch.frostnova.app.mailtool.gui.TableCard
 import ch.frostnova.app.mailtool.gui.Theme
 import ch.frostnova.app.mailtool.gui.card
 import ch.frostnova.app.mailtool.gui.primaryButton
@@ -21,7 +24,6 @@ import java.awt.FlowLayout
 import javax.swing.BorderFactory
 import javax.swing.JOptionPane
 import javax.swing.JPanel
-import javax.swing.JScrollPane
 import javax.swing.JTable
 import javax.swing.ListSelectionModel
 import javax.swing.RowSorter
@@ -36,7 +38,7 @@ private data class FolderRow(
     val name: String,
     val fullName: String,
     val messageCount: Int?,
-    val retention: String,
+    val retention: RetentionValue,
     val rules: String
 ) {
     val displayName: String get() = if (name == fullName) name else "$name ($fullName)"
@@ -93,15 +95,17 @@ class FolderPanel(
             add(statusLabel)
         }
 
-        val scrollPane = JScrollPane(table).apply {
-            border = BorderFactory.createEmptyBorder()
-            viewport.background = Theme.SURFACE
-        }
+        val tableCard = TableCard(
+            table,
+            IconType.FOLDER,
+            I18n.t("folders.empty"),
+            I18n.t("folders.refresh")
+        ) { refresh() }
 
         val body = JPanel(BorderLayout()).apply {
             background = Theme.SURFACE
             add(toolbar, BorderLayout.NORTH)
-            add(scrollPane, BorderLayout.CENTER)
+            add(tableCard, BorderLayout.CENTER)
         }
 
         add(sectionHeader(I18n.t("folders.header"), I18n.t("folders.header.description")), BorderLayout.NORTH)
@@ -225,19 +229,23 @@ class FolderPanel(
     }
 
     private fun toRow(folder: FolderCount): FolderRow {
-        val retention = retentionFor(folder.name, retentionSupplier())
+        val retention = retentionValueFor(folder.name, retentionSupplier())
         val rules = rulesFor(folder.name, rulesSupplier())
         return FolderRow(folder.name, folder.fullName, folder.messageCount, retention, rules)
     }
 }
 
+internal fun retentionValueFor(folderName: String, settings: List<DataRetentionSettings>): RetentionValue {
+    val periods = settings.filter { matchesFolder(folderName, it.folder) }.mapNotNull { it.retentionPeriod }
+    val label = periods.joinToString(", ") { retentionLabel(it) }
+    val seconds = periods.minOfOrNull { it.toDuration().seconds } ?: Long.MIN_VALUE
+    return RetentionValue(label, seconds)
+}
+
 internal fun retentionFor(
     folderName: String,
     settings: List<DataRetentionSettings>
-): String = settings
-    .filter { matchesFolder(folderName, it.folder) }
-    .mapNotNull { it.retentionPeriod }
-    .joinToString(", ") { retentionLabel(it) }
+): String = retentionValueFor(folderName, settings).toString()
 
 internal fun rulesFor(
     folderName: String,
@@ -276,8 +284,11 @@ private class FoldersTableModel : AbstractTableModel() {
     override fun getColumnName(column: Int): String = columns[column]
     override fun isCellEditable(row: Int, column: Int): Boolean = false
 
-    override fun getColumnClass(columnIndex: Int): Class<*> =
-        if (columnIndex == 1) Int::class.javaObjectType else String::class.java
+    override fun getColumnClass(columnIndex: Int): Class<*> = when (columnIndex) {
+        1 -> Int::class.javaObjectType
+        2 -> RetentionValue::class.java
+        else -> String::class.java
+    }
 
     override fun getValueAt(row: Int, column: Int): Any {
         val folder = rows[row]
