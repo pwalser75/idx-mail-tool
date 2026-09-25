@@ -113,7 +113,7 @@ object ObjectMappers {
             .disable(WRITE_DATES_AS_TIMESTAMPS)
             .disable(WRITE_SINGLE_ELEM_ARRAYS_UNWRAPPED)
             .enable(FAIL_ON_UNKNOWN_PROPERTIES)
-            .setSerializationInclusion(NON_EMPTY)
+            .setDefaultPropertyInclusion(NON_EMPTY)
     }
 
     internal enum class Type {

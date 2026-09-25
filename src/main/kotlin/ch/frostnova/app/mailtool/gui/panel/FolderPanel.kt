@@ -139,14 +139,6 @@ class FolderPanel(
         add(card(body), BorderLayout.CENTER)
     }
 
-    override fun load(account: AccountProperties) {
-        // not a configuration editor
-    }
-
-    override fun readInto(account: AccountProperties) {
-        // not a configuration editor
-    }
-
     /** Loads the folders the first time the section is shown, and refreshes stale data. */
     fun ensureLoaded() {
         if (loading) return

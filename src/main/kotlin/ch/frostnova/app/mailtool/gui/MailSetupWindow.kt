@@ -50,6 +50,14 @@ import javax.swing.border.EmptyBorder
 import kotlin.system.exitProcess
 
 /**
+ * Which section the window should open on.
+ */
+enum class StartSection {
+    DEFAULT,
+    SETUP
+}
+
+/**
  * The setup window: a split view with the configuration sections on the left and
  * the editor for the selected section on the right.
  */
@@ -120,6 +128,7 @@ class MailSetupWindow private constructor(
     private var originalAccountName: String? = initialState.originalAccountName
     private var savedAccountName: String = initialState.savedAccountName
     private var savedAccount: AccountProperties = initialState.savedAccount
+    private var savedAccountJson: String = ObjectMappers.json().writeValueAsString(initialState.savedAccount)
 
     private var switchingLocale = false
 
@@ -128,6 +137,7 @@ class MailSetupWindow private constructor(
         foreground = Theme.WARNING
         isVisible = false
     }
+    private val dirtyTimer = Timer(800) { updateDirtyIndicator() }
 
     init {
         isUndecorated = true
@@ -271,12 +281,8 @@ class MailSetupWindow private constructor(
 
         registerShortcuts()
         updateDirtyIndicator()
-        Timer(800) {
-            updateDirtyIndicator()
-        }.apply {
-            isRepeats = true
-            start()
-        }
+        dirtyTimer.isRepeats = true
+        dirtyTimer.start()
     }
 
     private fun registerShortcuts() {
@@ -313,8 +319,7 @@ class MailSetupWindow private constructor(
     private fun isDirty(): Boolean {
         val currentName = connectionPanel.accountName.ifEmpty { "default" }
         if (currentName != savedAccountName) return true
-        return ObjectMappers.json().writeValueAsString(currentAccount()) !=
-                ObjectMappers.json().writeValueAsString(savedAccount)
+        return ObjectMappers.json().writeValueAsString(currentAccount()) != savedAccountJson
     }
 
     private fun showSection(section: SetupSection) {
@@ -371,6 +376,7 @@ class MailSetupWindow private constructor(
             originalAccountName = accountName
             savedAccountName = accountName
             savedAccount = account
+            savedAccountJson = ObjectMappers.json().writeValueAsString(account)
             updateDirtyIndicator()
             Toast.show(rootPane, I18n.t("status.saved"))
             true
@@ -385,6 +391,11 @@ class MailSetupWindow private constructor(
             dispose()
             exitProcess(0)
         }
+    }
+
+    override fun dispose() {
+        dirtyTimer.stop()
+        super.dispose()
     }
 
     private fun confirmApplyChanges(): Boolean {
@@ -489,17 +500,17 @@ class MailSetupWindow private constructor(
     companion object {
         /**
          * Installs the dark theme and shows the setup window on the Swing event dispatch thread.
-         * When [openSetup] is true, the window opens on the connection setup section.
+         * With [start] = [StartSection.SETUP] the window opens on the connection setup section.
          */
         fun open(
             configuration: ConfigurationProperties,
             connector: MailConnector,
-            openSetup: Boolean = false,
+            start: StartSection = StartSection.DEFAULT,
             onSave: (ConfigurationProperties) -> Unit
         ) {
             SwingUtilities.invokeLater {
                 Theme.install()
-                val section = if (openSetup) SetupSection.CONNECTION else null
+                val section = if (start == StartSection.SETUP) SetupSection.CONNECTION else null
                 MailSetupWindow(configuration, connector, onSave, SetupState.initial(configuration, section)).isVisible = true
             }
         }

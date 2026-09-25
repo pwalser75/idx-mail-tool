@@ -1,8 +1,10 @@
 package ch.frostnova.app.mailtool.apply
 
+import ch.frostnova.app.mailtool.config.DataRetentionSettings
 import ch.frostnova.app.mailtool.config.MailRule
 import ch.frostnova.app.mailtool.config.MailRuleAction
 import ch.frostnova.app.mailtool.connector.MailAdapter
+import ch.frostnova.app.mailtool.util.Interval
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
@@ -16,6 +18,8 @@ import jakarta.mail.Message
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.Date
 
 @ExtendWith(MockKExtension::class)
@@ -96,5 +100,34 @@ class RuleApplierTest {
         verify { inbox.copyMessages(any(), archive) }
         verify { moveMessage.setFlag(any(), true) }
         verify { deleteMessage.setFlag(any(), true) }
+    }
+
+    @Test
+    fun `a move to a non-existent folder is skipped`() {
+        setUpMailbox()
+        val rules = listOf(MailRule().apply { senders = listOf("some.org"); action = MailRuleAction.MOVE; folder = "Nowhere" })
+        val actions = mutableListOf<MailAction>()
+
+        RuleApplier(adapter, rules, emptyList()).run(dryRun = false) { actions.add(it) }
+
+        assertThat(actions).isEmpty()
+        verify(exactly = 0) { inbox.copyMessages(any(), any()) }
+        verify(exactly = 0) { moveMessage.setFlag(any(), any()) }
+    }
+
+    @Test
+    fun `retention deletes messages older than the period`() {
+        setUpMailbox()
+        every { moveMessage.sentDate } returns Date.from(Instant.now().minus(100, ChronoUnit.DAYS))
+        val retention = listOf(
+            DataRetentionSettings().apply { folder = "Inbox"; retentionPeriod = Interval(days = 30) }
+        )
+        val actions = mutableListOf<MailAction>()
+
+        RuleApplier(adapter, emptyList(), retention).run(dryRun = false) { actions.add(it) }
+
+        assertThat(actions.map { it.type }).containsExactly(ActionType.DELETE)
+        assertThat(actions.single().origin).isEqualTo(ActionOrigin.RETENTION)
+        verify { moveMessage.setFlag(any(), true) }
     }
 }

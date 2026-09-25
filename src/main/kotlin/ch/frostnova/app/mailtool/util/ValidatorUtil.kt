@@ -3,9 +3,8 @@ package ch.frostnova.app.mailtool.util
 import jakarta.validation.Validation
 import jakarta.validation.ValidationException
 import jakarta.validation.Validator
-import java.util.Locale
 
-val validator: Validator = buildValidator()
+val validator: Validator = Validation.buildDefaultValidatorFactory().validator
 
 fun validate(any: Any) {
     val constraintViolations = (if (any is Collection<*>) any.flatMap { validator.validate(it) }.toList()
@@ -17,9 +16,4 @@ fun validate(any: Any) {
                 .sortedBy { it.propertyPath.toString() }
                 .joinToString("\n") { "${it.propertyPath}: (${it.invalidValue}) ${it.message}" })
     }
-}
-
-private fun buildValidator(): Validator {
-    Locale.setDefault(Locale.ENGLISH)
-    return Validation.buildDefaultValidatorFactory().validator
 }

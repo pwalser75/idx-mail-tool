@@ -15,16 +15,19 @@ import kotlin.system.exitProcess
 
 fun main(vararg args: String) {
     printLogo()
+    if (args.size > 1) {
+        printUsage()
+        exitProcess(1)
+    }
+    val requestedCommand = if (args.isEmpty()) Command.GUI else command(args[0])
+    if (requestedCommand == null) {
+        println("Unknown command: ${args[0]}".ansiFormat(ANSI_BOLD, ANSI_RED))
+        printUsage()
+        exitProcess(1)
+    }
+
     try {
         val configuration = readConfigProperties()
-        val requestedCommand = when {
-            args.isEmpty() -> Command.GUI
-            args.size == 1 -> command(args[0]) ?: throw IllegalArgumentException("Unknown command: ${args[0]}")
-            else -> {
-                printUsage()
-                exitProcess(1)
-            }
-        }
         val setupRequired = configuration == null || !hasConnectionSettings(configuration)
         val selectedCommand = if (setupRequired) {
             println(
@@ -42,7 +45,6 @@ fun main(vararg args: String) {
     } catch (ex: Exception) {
         println("${ex.javaClass.simpleName.ansiFormat(ANSI_BOLD, ANSI_RED)} - ${ex.message?.ansiFormat(ANSI_RED)}")
         ex.printStackTrace()
-        printUsage()
         exitProcess(1)
     }
 }
@@ -65,4 +67,3 @@ private fun printUsage() {
     }
     println()
 }
-

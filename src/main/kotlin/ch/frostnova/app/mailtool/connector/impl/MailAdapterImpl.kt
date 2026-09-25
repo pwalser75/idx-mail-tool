@@ -5,8 +5,11 @@ import jakarta.mail.FetchProfile
 import jakarta.mail.Folder
 import jakarta.mail.Message
 import jakarta.mail.Store
+import org.slf4j.LoggerFactory
 
 class MailAdapterImpl(private val store: Store) : MailAdapter, AutoCloseable by store {
+
+    private val logger = LoggerFactory.getLogger(MailAdapterImpl::class.java)
 
     override fun listFolders(): List<Folder> {
         val result = mutableListOf<Folder>()
@@ -33,8 +36,11 @@ class MailAdapterImpl(private val store: Store) : MailAdapter, AutoCloseable by 
                 message.sentDate
                 true
             } catch (ex: Exception) {
-                println(
-                    "Failed to fetch message: ${message.messageNumber} from folder ${message.folder.fullName}: ${ex.javaClass.simpleName}: ${ex.message}"
+                logger.warn(
+                    "Failed to fetch message {} from folder {}: {}",
+                    message.messageNumber,
+                    runCatching { message.folder.fullName }.getOrNull(),
+                    ex.toString()
                 )
                 false
             }

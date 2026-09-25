@@ -12,6 +12,7 @@ import ch.frostnova.app.mailtool.config.writeConfigProperties
 import ch.frostnova.app.mailtool.connector.Console
 import ch.frostnova.app.mailtool.connector.MailConnector
 import ch.frostnova.app.mailtool.gui.MailSetupWindow
+import ch.frostnova.app.mailtool.gui.StartSection
 import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_BOLD
 import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_GRAY
 import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_ORANGE
@@ -43,7 +44,7 @@ class MailTool(
     }
 
     private fun setup() {
-        MailSetupWindow.open(configuration, connector, openSetup = true) { writeConfigProperties(it) }
+        MailSetupWindow.open(configuration, connector, StartSection.SETUP) { writeConfigProperties(it) }
     }
 
     private fun applyRules() {

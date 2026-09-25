@@ -20,6 +20,7 @@ import ch.frostnova.app.mailtool.gui.secondaryButton
 import ch.frostnova.app.mailtool.gui.sectionHeader
 import ch.frostnova.app.mailtool.gui.statusLabel
 import ch.frostnova.app.mailtool.i18n.I18n
+import ch.frostnova.app.mailtool.util.ObjectMappers
 import ch.frostnova.app.mailtool.util.validate
 import jakarta.validation.ValidationException
 import java.awt.BorderLayout
@@ -62,6 +63,7 @@ class ApplyPanel(
     private val applyButton = primaryButton(I18n.t("apply.button.apply"), playIcon(Theme.ON_ACCENT)) { run(dryRun = false) }
 
     private var loading = false
+    private var lastPreviewSignature: String? = null
 
     init {
         background = Theme.BACKGROUND
@@ -109,14 +111,6 @@ class ApplyPanel(
         add(card(body), BorderLayout.CENTER)
     }
 
-    override fun load(account: AccountProperties) {
-        // not a configuration editor
-    }
-
-    override fun readInto(account: AccountProperties) {
-        // not a configuration editor
-    }
-
     private fun run(dryRun: Boolean) {
         if (loading) return
         val properties = connectionSupplier()
@@ -132,6 +126,7 @@ class ApplyPanel(
             return
         }
 
+        val signature = inputSignature()
         loading = true
         applyButton.isEnabled = false
         refreshButton.isEnabled = false
@@ -160,10 +155,12 @@ class ApplyPanel(
                     if (dryRun) {
                         model.setActions(actions)
                         statusLabel.text = I18n.t("apply.preview.done", actions.size)
+                        lastPreviewSignature = signature
                     } else {
-                        // the applied actions are done, so clear them
+                        // the applied actions are done, so clear them and refresh on the next visit
                         model.setActions(emptyList())
                         statusLabel.text = I18n.t("apply.applied.done", actions.size)
+                        lastPreviewSignature = null
                         onApplied()
                     }
                 } catch (ex: Exception) {
@@ -181,11 +178,21 @@ class ApplyPanel(
         }.execute()
     }
 
-    /** Runs a preview when the section is shown, so the actions are immediately visible. */
+    /**
+     * Runs a preview automatically only when the section is opened for the first
+     * time, or when the connection/rules/retention changed since the last preview.
+     */
     fun autoPreview() {
         if (loading || !isShowing) return
+        if (lastPreviewSignature != null && lastPreviewSignature == inputSignature()) return
         run(dryRun = true)
     }
+
+    /** Serialized signature of the preview inputs, used to detect stale previews. */
+    internal fun inputSignature(): String =
+        ObjectMappers.json().writeValueAsString(
+            listOf(connectionSupplier(), rulesSupplier(), retentionSupplier())
+        )
 }
 
 internal class ActionsTableModel : AbstractTableModel() {

@@ -3,6 +3,11 @@ package ch.frostnova.app.mailtool.gui.panel
 import ch.frostnova.app.mailtool.apply.ActionOrigin
 import ch.frostnova.app.mailtool.apply.ActionType
 import ch.frostnova.app.mailtool.apply.MailAction
+import ch.frostnova.app.mailtool.config.AccountProperties
+import ch.frostnova.app.mailtool.config.DataRetentionSettings
+import ch.frostnova.app.mailtool.config.MailRule
+import ch.frostnova.app.mailtool.config.MailRuleAction
+import ch.frostnova.app.mailtool.connector.MailConnector
 import ch.frostnova.app.mailtool.i18n.I18n
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -66,5 +71,24 @@ class ApplyPanelModelTest {
         )
 
         assertThat(model.getValueAt(0, 4)).isEqualTo("from folder INBOX/Spam")
+    }
+
+    @Test
+    fun `input signature changes when rules change`() {
+        var rules = listOf(MailRule().apply { senders = listOf("a.ch"); action = MailRuleAction.DELETE })
+        val panel = ApplyPanel(
+            connector = object : MailConnector {
+                override fun connect(properties: AccountProperties) = throw UnsupportedOperationException()
+            },
+            connectionSupplier = { AccountProperties() },
+            rulesSupplier = { rules },
+            retentionSupplier = { emptyList<DataRetentionSettings>() },
+            onApplied = {}
+        )
+
+        val before = panel.inputSignature()
+        rules = listOf(MailRule().apply { senders = listOf("b.ch"); action = MailRuleAction.DELETE })
+
+        assertThat(panel.inputSignature()).isNotEqualTo(before)
     }
 }

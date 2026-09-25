@@ -11,9 +11,16 @@ import jakarta.validation.ValidationException
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatCode
 import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.util.Locale
 
 class ConfigurationPropertiesTest {
+
+    @BeforeEach
+    fun useEnglishValidationMessages() {
+        Locale.setDefault(Locale.ENGLISH)
+    }
 
     private val properties = ConfigurationProperties().apply {
         accounts = mapOf("test" to AccountProperties().apply {
@@ -94,7 +101,7 @@ class ConfigurationPropertiesTest {
                         accounts[test].dataRetention[0].folder: (null) must not be blank
                         accounts[test].dataRetention[0].retentionPeriod: (null) must not be null
                         accounts[test].password: (null) must not be blank
-                        accounts[test].port: (9999999) must be less than or equal to 65564
+                        accounts[test].port: (9999999) must be less than or equal to 65535
                         accounts[test].protocol: () must not be blank
                         accounts[test].rules[0].action: (null) must not be null
                         accounts[test].rules[0].senders: ([]) must not be empty
@@ -102,6 +109,26 @@ class ConfigurationPropertiesTest {
                         accounts[test].username: ( ) must not be blank
                 """.trimIndent()
                 )
+            }
+    }
+
+    @Test
+    fun `should reject rules whose folder is inconsistent with the action`() {
+        val invalidProperties = ConfigurationProperties().apply {
+            accounts = mapOf("test" to AccountProperties().apply {
+                host = "imap.host.org"
+                username = "user@host.org"
+                password = "Secret#007"
+                rules = listOf(
+                    MailRule().apply { senders = listOf("a.ch"); action = MOVE },
+                    MailRule().apply { senders = listOf("b.ch"); action = DELETE; folder = "Archive" }
+                )
+            })
+        }
+
+        assertThatThrownBy { validate(invalidProperties) }
+            .isInstanceOfSatisfying(ValidationException::class.java) { ex ->
+                assertThat(ex.message).contains("folder is required for MOVE and COPY")
             }
     }
 

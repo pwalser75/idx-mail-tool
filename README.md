@@ -39,12 +39,14 @@ java -jar target/idx-mail-tool.jar [command]
 | `apply` | Apply all rules and retention policies                         |
 
 When no configuration exists yet, or the configured account has no connection settings, the GUI opens on the
-setup section automatically. Running with an unknown command prints the usage information.
+setup section automatically. Running with an unknown command prints the usage information. Command-line output is
+in English; only the GUI is localized.
 
 ## Configuration
 
 The configuration is stored in `~/.idx-mail-tool.yaml` and is normally maintained through the setup UI. It maps
-account names to connection settings, mail rules and retention policies:
+account names to connection settings, mail rules and retention policies. As it contains the account password, the
+file is created with owner-only permissions where the platform supports it:
 
 ```yaml
 accounts:

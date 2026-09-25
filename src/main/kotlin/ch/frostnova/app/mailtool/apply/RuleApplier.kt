@@ -63,20 +63,21 @@ class RuleApplier(
     private fun applyMailRules(folders: List<Folder>, dryRun: Boolean, onAction: (MailAction) -> Unit) {
         folders.forEach { folder ->
             if (!folder.isOpen) return@forEach
-            listMessages(folder).forEach { message ->
-                val rule = firstMatchingRule(message) ?: return@forEach
+            listMessages(folder).forEach messageLoop@{ message ->
+                if (isDeleted(message)) return@messageLoop
+                val rule = firstMatchingRule(message) ?: return@messageLoop
                 val target = rule.folder?.let { firstMatchingFolder(folders, it) }
                 when (rule.action) {
-                    MOVE -> if (target != message.folder) {
-                        onAction(action(ActionType.MOVE, ActionOrigin.RULE, message, targetFolder = target?.fullName))
+                    MOVE -> if (target != null && target != message.folder) {
+                        onAction(action(ActionType.MOVE, ActionOrigin.RULE, message, targetFolder = target.fullName))
                         if (!dryRun) {
                             message.folder.copyMessages(arrayOf(message), target)
                             message.setFlag(Flags.Flag.DELETED, true)
                         }
                     }
 
-                    COPY -> if (target != message.folder) {
-                        onAction(action(ActionType.COPY, ActionOrigin.RULE, message, targetFolder = target?.fullName))
+                    COPY -> if (target != null && target != message.folder) {
+                        onAction(action(ActionType.COPY, ActionOrigin.RULE, message, targetFolder = target.fullName))
                         if (!dryRun) {
                             message.folder.copyMessages(arrayOf(message), target)
                         }
@@ -101,7 +102,8 @@ class RuleApplier(
             val folderName = settings.folder ?: return@forEach
             val deleteBefore = now.minus(period.toDuration())
             val folder = firstMatchingFolder(folders, folderName) ?: return@forEach
-            listMessages(folder).forEach { message ->
+            listMessages(folder).forEach retentionLoop@{ message ->
+                if (isDeleted(message)) return@retentionLoop
                 val sentDate = runCatching { message.sentDate?.toInstant() }.getOrNull()
                 if (sentDate != null && sentDate.isBefore(deleteBefore)) {
                     onAction(
@@ -119,6 +121,9 @@ class RuleApplier(
             }
         }
     }
+
+    private fun isDeleted(message: Message): Boolean =
+        runCatching { message.isSet(Flags.Flag.DELETED) }.getOrDefault(false)
 
     private fun open(folder: Folder, dryRun: Boolean) {
         runCatching {

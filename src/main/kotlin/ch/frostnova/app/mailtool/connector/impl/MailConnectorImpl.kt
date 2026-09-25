@@ -15,6 +15,9 @@ class MailConnectorImpl : MailConnector {
             put("mail.${properties.protocol}.host", properties.host)
             put("mail.${properties.protocol}.port", properties.port.toString())
             put("mail.${properties.protocol}.ssl.enable", properties.tlsEnabled.toString())
+            put("mail.${properties.protocol}.connectiontimeout", CONNECT_TIMEOUT_MS)
+            put("mail.${properties.protocol}.timeout", READ_TIMEOUT_MS)
+            put("mail.${properties.protocol}.writetimeout", WRITE_TIMEOUT_MS)
         }
 
         val session = Session.getInstance(props)
@@ -25,5 +28,11 @@ class MailConnectorImpl : MailConnector {
                 properties.password
             )
         })
+    }
+
+    private companion object {
+        const val CONNECT_TIMEOUT_MS = "15000"
+        const val READ_TIMEOUT_MS = "30000"
+        const val WRITE_TIMEOUT_MS = "30000"
     }
 }

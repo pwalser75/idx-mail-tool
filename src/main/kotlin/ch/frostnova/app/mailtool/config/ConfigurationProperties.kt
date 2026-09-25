@@ -5,15 +5,21 @@ import ch.frostnova.app.mailtool.util.ObjectMappers
 import ch.frostnova.app.mailtool.util.serializer.IntervalDeserializer
 import ch.frostnova.app.mailtool.util.serializer.IntervalSerializer
 import ch.frostnova.app.mailtool.util.serializer.StringListDeserializer
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import jakarta.validation.Valid
+import jakarta.validation.constraints.AssertTrue
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotEmpty
 import jakarta.validation.constraints.NotNull
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.attribute.PosixFileAttributeView
+import java.nio.file.attribute.PosixFilePermission
+import java.util.EnumSet
 
 class ConfigurationProperties {
     @Valid
@@ -28,7 +34,7 @@ class AccountProperties {
     var host: String? = null
 
     @Min(1)
-    @Max(65564)
+    @Max(65535)
     var port: Int = 993
 
     var tlsEnabled = true
@@ -64,6 +70,16 @@ class MailRule {
     var action: MailRuleAction? = null
 
     var folder: String? = null
+
+    /** A folder is required for MOVE/COPY and must be absent for DELETE. */
+    @get:JsonIgnore
+    @get:AssertTrue(message = "folder is required for MOVE and COPY, and must be empty for DELETE")
+    val isFolderConsistent: Boolean
+        get() = when (action) {
+            MailRuleAction.MOVE, MailRuleAction.COPY -> !folder.isNullOrBlank()
+            MailRuleAction.DELETE -> folder.isNullOrBlank()
+            else -> true
+        }
 }
 
 enum class MailRuleAction {
@@ -86,5 +102,17 @@ fun readConfigProperties(): ConfigurationProperties? {
 }
 
 fun writeConfigProperties(configuration: ConfigurationProperties) {
-    ObjectMappers.forResource(configFile()).writeValue(configFile(), configuration)
+    val file = configFile()
+    ObjectMappers.forResource(file).writeValue(file, configuration)
+    restrictToOwner(file)
+}
+
+/** Restricts the configuration file (which holds the password) to the owner, where supported. */
+private fun restrictToOwner(file: File) {
+    runCatching {
+        val view = Files.getFileAttributeView(file.toPath(), PosixFileAttributeView::class.java)
+        view?.setPermissions(
+            EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE)
+        )
+    }
 }
