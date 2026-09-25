@@ -3,11 +3,13 @@ package ch.frostnova.app.mailtool.gui.dialog
 import ch.frostnova.app.mailtool.config.DataRetentionSettings
 import ch.frostnova.app.mailtool.gui.FormPanel
 import ch.frostnova.app.mailtool.gui.Theme
+import ch.frostnova.app.mailtool.gui.commitValue
 import ch.frostnova.app.mailtool.gui.customizeDialog
 import ch.frostnova.app.mailtool.gui.formLabel
 import ch.frostnova.app.mailtool.gui.primaryButton
 import ch.frostnova.app.mailtool.gui.secondaryButton
 import ch.frostnova.app.mailtool.gui.textField
+import ch.frostnova.app.mailtool.i18n.I18n
 import ch.frostnova.app.mailtool.util.Interval
 import java.awt.BorderLayout
 import java.awt.Dialog.ModalityType
@@ -25,9 +27,13 @@ import javax.swing.SpinnerNumberModel
  * The retention period is configured in days.
  */
 class RetentionDialog(owner: Window, private val setting: DataRetentionSettings?) :
-    JDialog(owner, if (setting == null) "Add data retention rule" else "Edit data retention rule", ModalityType.APPLICATION_MODAL) {
+    JDialog(
+        owner,
+        I18n.t(if (setting == null) "retention.title.add" else "retention.title.edit"),
+        ModalityType.APPLICATION_MODAL
+    ) {
 
-    private val folderField = textField(24, "folder name").apply {
+    private val folderField = textField(24, I18n.t("retention.folder.placeholder")).apply {
         text = setting?.folder.orEmpty()
     }
     private val daysSpinner = JSpinner(
@@ -46,18 +52,18 @@ class RetentionDialog(owner: Window, private val setting: DataRetentionSettings?
         val intervalPanel = JPanel(FlowLayout(FlowLayout.LEADING, 8, 0)).apply {
             background = Theme.SURFACE
             add(daysSpinner)
-            add(formLabel("days"))
+            add(formLabel(I18n.t("retention.days")))
         }
 
         val form = FormPanel().apply {
-            row("Folder", folderField)
-            row("Retention period", intervalPanel)
+            row(I18n.t("retention.folder"), folderField)
+            row(I18n.t("retention.period"), intervalPanel)
         }
 
-        val saveButton = primaryButton("Save") { onSave() }
+        val saveButton = primaryButton(I18n.t("common.save")) { onSave() }
         val buttonBar = JPanel(FlowLayout(FlowLayout.RIGHT, 10, 14)).apply {
             background = Theme.BACKGROUND
-            add(secondaryButton("Cancel") { dispose() })
+            add(secondaryButton(I18n.t("common.cancel")) { dispose() })
             add(saveButton)
         }
 
@@ -73,8 +79,23 @@ class RetentionDialog(owner: Window, private val setting: DataRetentionSettings?
     private fun onSave() {
         val folder = folderField.text.trim()
         if (folder.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Please provide a folder name.", "Invalid rule", JOptionPane.WARNING_MESSAGE)
+            JOptionPane.showMessageDialog(
+                this,
+                I18n.t("retention.invalid.folder"),
+                I18n.t("retention.invalid.title"),
+                JOptionPane.WARNING_MESSAGE
+            )
             folderField.requestFocusInWindow()
+            return
+        }
+
+        if (!daysSpinner.commitValue()) {
+            JOptionPane.showMessageDialog(
+                this,
+                I18n.t("retention.invalid.days"),
+                I18n.t("retention.invalid.title"),
+                JOptionPane.WARNING_MESSAGE
+            )
             return
         }
 

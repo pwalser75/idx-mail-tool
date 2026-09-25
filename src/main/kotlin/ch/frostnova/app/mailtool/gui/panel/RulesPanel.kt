@@ -6,12 +6,19 @@ import ch.frostnova.app.mailtool.gui.Theme
 import ch.frostnova.app.mailtool.gui.TooltipCellRenderer
 import ch.frostnova.app.mailtool.gui.card
 import ch.frostnova.app.mailtool.gui.dialog.RuleDialog
+import ch.frostnova.app.mailtool.gui.editIcon
+import ch.frostnova.app.mailtool.gui.plusIcon
 import ch.frostnova.app.mailtool.gui.primaryButton
 import ch.frostnova.app.mailtool.gui.secondaryButton
 import ch.frostnova.app.mailtool.gui.sectionHeader
+import ch.frostnova.app.mailtool.gui.trashIcon
+import ch.frostnova.app.mailtool.i18n.I18n
 import java.awt.BorderLayout
 import java.awt.FlowLayout
+import java.awt.event.ActionEvent
 import java.awt.event.KeyEvent
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
 import javax.swing.AbstractAction
 import javax.swing.BorderFactory
 import javax.swing.JOptionPane
@@ -53,22 +60,22 @@ class RulesPanel : JPanel(BorderLayout()), SetupPanel {
         table.columnModel.getColumn(0).preferredWidth = 320
         table.columnModel.getColumn(1).preferredWidth = 90
         table.columnModel.getColumn(2).preferredWidth = 180
-        table.addMouseListener(object : java.awt.event.MouseAdapter() {
-            override fun mouseClicked(event: java.awt.event.MouseEvent) {
+        table.addMouseListener(object : MouseAdapter() {
+            override fun mouseClicked(event: MouseEvent) {
                 if (event.clickCount == 2) editRule()
             }
         })
         table.inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "removeRule")
         table.actionMap.put("removeRule", object : AbstractAction() {
-            override fun actionPerformed(event: java.awt.event.ActionEvent) = removeRule()
+            override fun actionPerformed(event: ActionEvent) = removeRule()
         })
 
         val toolbar = JPanel(FlowLayout(FlowLayout.LEADING, 10, 14)).apply {
             background = Theme.SURFACE
             border = EmptyBorder(0, 20, 0, 20)
-            add(primaryButton("Add rule") { addRule() })
-            add(secondaryButton("Edit") { editRule() })
-            add(secondaryButton("Remove") { removeRule() })
+            add(primaryButton(I18n.t("rules.add"), plusIcon(Theme.ON_ACCENT)) { addRule() })
+            add(secondaryButton(I18n.t("rules.edit"), editIcon(Theme.TEXT)) { editRule() })
+            add(secondaryButton(I18n.t("rules.remove"), trashIcon(Theme.TEXT)) { removeRule() })
         }
 
         val scrollPane = JScrollPane(table).apply {
@@ -82,10 +89,7 @@ class RulesPanel : JPanel(BorderLayout()), SetupPanel {
             add(scrollPane, BorderLayout.CENTER)
         }
 
-        add(
-            sectionHeader("Mail rules", "Sort incoming messages into folders based on the sender address."),
-            BorderLayout.NORTH
-        )
+        add(sectionHeader(I18n.t("rules.header"), I18n.t("rules.header.description")), BorderLayout.NORTH)
         add(card(body), BorderLayout.CENTER)
     }
 
@@ -111,7 +115,7 @@ class RulesPanel : JPanel(BorderLayout()), SetupPanel {
     private fun editRule() {
         val index = table.selectedRow
         if (index < 0) {
-            JOptionPane.showMessageDialog(this, "Please select a rule to edit.", "No rule selected", JOptionPane.INFORMATION_MESSAGE)
+            JOptionPane.showMessageDialog(this, I18n.t("rules.edit.select"), I18n.t("rules.select.title"), JOptionPane.INFORMATION_MESSAGE)
             return
         }
         val dialog = RuleDialog(windowOwner(), rules[index])
@@ -125,13 +129,13 @@ class RulesPanel : JPanel(BorderLayout()), SetupPanel {
     private fun removeRule() {
         val index = table.selectedRow
         if (index < 0) {
-            JOptionPane.showMessageDialog(this, "Please select a rule to remove.", "No rule selected", JOptionPane.INFORMATION_MESSAGE)
+            JOptionPane.showMessageDialog(this, I18n.t("rules.remove.select"), I18n.t("rules.select.title"), JOptionPane.INFORMATION_MESSAGE)
             return
         }
         val confirm = JOptionPane.showConfirmDialog(
             this,
-            "Remove this rule?\n${rules[index].senders.joinToString(", ")}",
-            "Remove rule",
+            I18n.t("rules.remove.confirm", rules[index].senders.joinToString(", ")),
+            I18n.t("rules.remove.title"),
             JOptionPane.YES_NO_OPTION,
             JOptionPane.WARNING_MESSAGE
         )
@@ -153,7 +157,11 @@ class RulesPanel : JPanel(BorderLayout()), SetupPanel {
 
 private class RulesTableModel : AbstractTableModel() {
 
-    private val columns = listOf("Senders", "Action", "Target folder")
+    private val columns = listOf(
+        I18n.t("rules.column.senders"),
+        I18n.t("rules.column.action"),
+        I18n.t("rules.column.folder")
+    )
     private var rows: List<MailRule> = emptyList()
 
     fun setRules(rules: List<MailRule>) {

@@ -8,13 +8,16 @@ import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import java.awt.Insets
 import java.awt.event.ActionEvent
+import java.text.ParseException
 import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JLabel
+import javax.swing.Icon
 import javax.swing.JPanel
+import javax.swing.JSpinner
 import javax.swing.JTextField
 import javax.swing.SwingConstants
 import javax.swing.border.EmptyBorder
@@ -49,9 +52,10 @@ fun formLabel(text: String): JLabel = JLabel(text).apply {
     foreground = Theme.TEXT
 }
 
-fun primaryButton(text: String, action: (ActionEvent) -> Unit): JButton =
-    JButton(text).apply {
+fun primaryButton(text: String, icon: Icon? = null, action: (ActionEvent) -> Unit): JButton =
+    JButton(text, icon).apply {
         isFocusable = false
+        iconTextGap = if (icon != null) 8 else 0
         putClientProperty(
             FlatClientProperties.STYLE,
             "arc: 0; background: #4c9aff; foreground: #ffffff; " +
@@ -61,9 +65,11 @@ fun primaryButton(text: String, action: (ActionEvent) -> Unit): JButton =
         addActionListener { action(it) }
     }
 
-fun secondaryButton(text: String, action: (ActionEvent) -> Unit): JButton =
-    JButton(text).apply {
+fun secondaryButton(text: String, icon: Icon? = null, action: (ActionEvent) -> Unit): JButton =
+    JButton(text, icon).apply {
         isFocusable = false
+        foreground = Theme.TEXT
+        iconTextGap = if (icon != null) 8 else 0
         putClientProperty(
             FlatClientProperties.STYLE,
             "arc: 0; background: #33363a; foreground: #dfe1e5; " +
@@ -187,6 +193,18 @@ fun customizeDialog(dialog: javax.swing.JDialog, defaultButton: JButton) {
     dialog.rootPane.defaultButton = defaultButton
     val escape = javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0)
     dialog.rootPane.registerKeyboardAction({ dialog.dispose() }, escape, JComponent.WHEN_IN_FOCUSED_WINDOW)
+}
+
+/**
+ * Commits a spinner's editor text into its model. Returns `false` if the entered
+ * text is not a valid value. Needed because our buttons are not focusable, so the
+ * editor never loses focus and thus never commits on its own.
+ */
+fun JSpinner.commitValue(): Boolean = try {
+    commitEdit()
+    true
+} catch (ex: ParseException) {
+    false
 }
 
 /**

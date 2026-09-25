@@ -64,6 +64,11 @@ The configuration is validated before it is written to `~/.idx-mail-tool.yaml`. 
 `✕` button in the top-right corner; if there are unsaved changes, you are asked whether to apply them
 (Yes / No / Cancel).
 
+### Languages
+
+The setup UI is available in English, German, French and Italian. It starts in the user's language (falling back to
+English for unsupported languages) and can be switched at runtime with the language drop-down in the top-right corner.
+
 ## Configuration
 
 The configuration is stored locally in the user home directory, as a YAML file named `.idx-mail-tool.yaml`.

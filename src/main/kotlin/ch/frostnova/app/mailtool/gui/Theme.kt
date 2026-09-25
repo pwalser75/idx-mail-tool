@@ -13,6 +13,7 @@ object Theme {
 
     val ACCENT = Color(0x4C9AFF)
     val ACCENT_DARK = Color(0x2F6FBF)
+    val ON_ACCENT = Color(0xFFFFFF)
     val BACKGROUND = Color(0x1E1F22)
     val SURFACE = Color(0x2B2D30)
     val SURFACE_ALT = Color(0x33363A)

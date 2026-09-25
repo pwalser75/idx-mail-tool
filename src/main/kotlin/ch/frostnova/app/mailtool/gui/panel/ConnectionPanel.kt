@@ -5,10 +5,12 @@ import ch.frostnova.app.mailtool.connector.MailConnector
 import ch.frostnova.app.mailtool.gui.FormPanel
 import ch.frostnova.app.mailtool.gui.Theme
 import ch.frostnova.app.mailtool.gui.card
+import ch.frostnova.app.mailtool.gui.commitValue
 import ch.frostnova.app.mailtool.gui.primaryButton
 import ch.frostnova.app.mailtool.gui.sectionHeader
 import ch.frostnova.app.mailtool.gui.statusLabel
 import ch.frostnova.app.mailtool.gui.textField
+import ch.frostnova.app.mailtool.i18n.I18n
 import ch.frostnova.app.mailtool.util.validate
 import jakarta.validation.ValidationException
 import java.awt.BorderLayout
@@ -29,25 +31,25 @@ import javax.swing.border.EmptyBorder
  */
 class ConnectionPanel(private val connector: MailConnector) : JPanel(BorderLayout()), SetupPanel {
 
-    private val accountNameField = textField(28, "account name")
+    private val accountNameField = textField(28, I18n.t("connection.accountName.placeholder"))
     private val protocolCombo = JComboBox(arrayOf("imaps", "imap")).apply { font = Theme.LABEL_FONT }
-    private val hostField = textField(28, "imap.example.org")
+    private val hostField = textField(28, I18n.t("connection.host.placeholder"))
     private val portSpinner = JSpinner(SpinnerNumberModel(993, 1, 65564, 1)).apply {
         preferredSize = Dimension(110, preferredSize.height)
     }
-    private val tlsCheck = JCheckBox("Use TLS / SSL", true).apply {
+    private val tlsCheck = JCheckBox(I18n.t("connection.tls"), true).apply {
         font = Theme.LABEL_FONT
         foreground = Theme.TEXT
         background = Theme.SURFACE
         isOpaque = false
     }
-    private val usernameField = textField(28, "user@example.org")
+    private val usernameField = textField(28, I18n.t("connection.username.placeholder"))
     private val passwordField = JPasswordField(28).apply {
         font = Theme.LABEL_FONT
     }
 
     private val statusLabel = statusLabel()
-    private val testButton = primaryButton("Test connection") { testConnection() }
+    private val testButton = primaryButton(I18n.t("connection.test")) { testConnection() }
 
     var accountName: String
         get() = accountNameField.text.trim()
@@ -60,13 +62,13 @@ class ConnectionPanel(private val connector: MailConnector) : JPanel(BorderLayou
         border = EmptyBorder(28, 32, 28, 32)
 
         val form = FormPanel().apply {
-            row("Account name", accountNameField)
-            row("Protocol", protocolCombo)
-            row("Host", hostField)
-            row("Port", portSpinner)
-            row("Encryption", tlsCheck)
-            row("Username", usernameField)
-            row("Password", passwordField)
+            row(I18n.t("connection.accountName"), accountNameField)
+            row(I18n.t("connection.protocol"), protocolCombo)
+            row(I18n.t("connection.host"), hostField)
+            row(I18n.t("connection.port"), portSpinner)
+            row(I18n.t("connection.encryption"), tlsCheck)
+            row(I18n.t("connection.username"), usernameField)
+            row(I18n.t("connection.password"), passwordField)
         }
 
         val testBar = JPanel(FlowLayout(FlowLayout.LEADING, 12, 0)).apply {
@@ -87,7 +89,7 @@ class ConnectionPanel(private val connector: MailConnector) : JPanel(BorderLayou
             add(card(cardContent), BorderLayout.NORTH)
         }
 
-        add(sectionHeader("Connection", "Configure the IMAP server and verify that the credentials work."), BorderLayout.NORTH)
+        add(sectionHeader(I18n.t("connection.header"), I18n.t("connection.header.description")), BorderLayout.NORTH)
         add(cardHolder, BorderLayout.CENTER)
     }
 
@@ -102,6 +104,7 @@ class ConnectionPanel(private val connector: MailConnector) : JPanel(BorderLayou
     }
 
     override fun readInto(account: AccountProperties) {
+        portSpinner.commitValue()
         account.protocol = protocolCombo.selectedItem as? String ?: "imaps"
         account.host = hostField.text.trim()
         account.port = portSpinner.value as Int
@@ -116,13 +119,18 @@ class ConnectionPanel(private val connector: MailConnector) : JPanel(BorderLayou
         val properties = try {
             buildProperties().also { validate(it) }
         } catch (ex: ValidationException) {
-            JOptionPane.showMessageDialog(this, ex.message, "Invalid connection settings", JOptionPane.WARNING_MESSAGE)
+            JOptionPane.showMessageDialog(
+                this,
+                ex.message,
+                I18n.t("connection.invalid.title"),
+                JOptionPane.WARNING_MESSAGE
+            )
             return
         }
 
         testButton.isEnabled = false
         statusLabel.foreground = Theme.MUTED
-        statusLabel.text = "Connecting to ${properties.host}:${properties.port} ..."
+        statusLabel.text = I18n.t("connection.connecting", properties.host.orEmpty(), properties.port)
 
         object : SwingWorker<Int, Void>() {
             override fun doInBackground(): Int =
@@ -133,15 +141,15 @@ class ConnectionPanel(private val connector: MailConnector) : JPanel(BorderLayou
                 try {
                     val folderCount = get()
                     statusLabel.foreground = Theme.SUCCESS
-                    statusLabel.text = "Connection successful - $folderCount folders found"
+                    statusLabel.text = I18n.t("connection.success", folderCount)
                 } catch (ex: Exception) {
                     val cause = ex.cause ?: ex
                     statusLabel.foreground = Theme.DANGER
-                    statusLabel.text = "Connection failed: ${cause.message}"
+                    statusLabel.text = I18n.t("connection.failed", cause.message ?: cause.toString())
                     JOptionPane.showMessageDialog(
                         this@ConnectionPanel,
                         cause.message ?: cause.toString(),
-                        "Connection failed",
+                        I18n.t("connection.failed.title"),
                         JOptionPane.ERROR_MESSAGE
                     )
                 }

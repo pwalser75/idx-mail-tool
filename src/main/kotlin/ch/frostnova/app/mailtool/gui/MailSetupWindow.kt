@@ -6,6 +6,7 @@ import ch.frostnova.app.mailtool.connector.MailConnector
 import ch.frostnova.app.mailtool.gui.panel.ConnectionPanel
 import ch.frostnova.app.mailtool.gui.panel.RetentionPanel
 import ch.frostnova.app.mailtool.gui.panel.RulesPanel
+import ch.frostnova.app.mailtool.i18n.I18n
 import ch.frostnova.app.mailtool.util.ObjectMappers
 import ch.frostnova.app.mailtool.util.validate
 import jakarta.validation.ValidationException
@@ -15,6 +16,7 @@ import java.awt.Component
 import java.awt.Container
 import java.awt.Cursor
 import java.awt.Dimension
+import java.awt.FlowLayout
 import java.awt.Font
 import java.awt.Point
 import java.awt.event.MouseAdapter
@@ -22,9 +24,12 @@ import java.awt.event.MouseEvent
 import java.awt.event.MouseMotionAdapter
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
+import java.util.Locale
 import javax.swing.AbstractButton
 import javax.swing.BorderFactory
+import javax.swing.DefaultListCellRenderer
 import javax.swing.JButton
+import javax.swing.JComboBox
 import javax.swing.JFrame
 import javax.swing.JLabel
 import javax.swing.JList
@@ -41,16 +46,41 @@ import kotlin.system.exitProcess
  * The setup window: a split view with the configuration sections on the left and
  * the editor for the selected section on the right.
  */
-class MailSetupWindow(
+class MailSetupWindow private constructor(
     private val configuration: ConfigurationProperties,
-    connector: MailConnector,
-    private val onSave: (ConfigurationProperties) -> Unit
-) : JFrame("IDX Mail Tool - Setup") {
+    private val connector: MailConnector,
+    private val onSave: (ConfigurationProperties) -> Unit,
+    private val initialState: SetupState
+) : JFrame(I18n.t("app.window")) {
 
-    private enum class SetupSection(val title: String, val description: String) {
-        CONNECTION("Connection", "IMAP server, credentials and connectivity"),
-        RULES("Mail rules", "Sort incoming messages into folders"),
-        RETENTION("Data retention", "Delete old messages from folders")
+    constructor(
+        configuration: ConfigurationProperties,
+        connector: MailConnector,
+        onSave: (ConfigurationProperties) -> Unit
+    ) : this(configuration, connector, onSave, SetupState.initial(configuration))
+
+    private enum class SetupSection(val titleKey: String, val descriptionKey: String) {
+        CONNECTION("section.connection.title", "section.connection.description"),
+        RULES("section.rules.title", "section.rules.description"),
+        RETENTION("section.retention.title", "section.retention.description")
+    }
+
+    private class SetupState(
+        val originalAccountName: String?,
+        val savedAccountName: String,
+        val savedAccount: AccountProperties,
+        val accountName: String,
+        val account: AccountProperties,
+        val sectionIndex: Int
+    ) {
+        companion object {
+            fun initial(configuration: ConfigurationProperties): SetupState {
+                val entry = configuration.accounts.entries.firstOrNull()
+                val account = entry?.value ?: AccountProperties()
+                val name = entry?.key ?: "default"
+                return SetupState(entry?.key, name, account, name, account, 0)
+            }
+        }
     }
 
     private val connectionPanel = ConnectionPanel(connector)
@@ -61,19 +91,22 @@ class MailSetupWindow(
     private val sectionList = JList(sections)
     private val contentPanel = JPanel(CardLayout())
 
-    private var currentSection = SetupSection.CONNECTION
-    private var originalAccountName: String? = null
-    private var savedAccountName = "default"
-    private var savedAccount = AccountProperties()
+    private var currentSection = SetupSection.entries[initialState.sectionIndex]
+    private var originalAccountName: String? = initialState.originalAccountName
+    private var savedAccountName: String = initialState.savedAccountName
+    private var savedAccount: AccountProperties = initialState.savedAccount
+
+    private var switchingLocale = false
 
     init {
         isUndecorated = true
         defaultCloseOperation = DO_NOTHING_ON_CLOSE
         contentPane.background = Theme.BACKGROUND
 
-        loadAccount()
-        savedAccountName = connectionPanel.accountName.ifEmpty { "default" }
-        savedAccount = currentAccount()
+        connectionPanel.accountName = initialState.accountName
+        connectionPanel.load(initialState.account)
+        rulesPanel.load(initialState.account)
+        retentionPanel.load(initialState.account)
 
         val closeButton = JButton("\u2715").apply {
             font = Font(Font.SANS_SERIF, Font.PLAIN, 16)
@@ -83,7 +116,7 @@ class MailSetupWindow(
             isBorderPainted = false
             border = EmptyBorder(4, 8, 4, 8)
             cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
-            toolTipText = "Close"
+            toolTipText = I18n.t("common.cancel")
             addMouseListener(object : MouseAdapter() {
                 override fun mouseEntered(event: MouseEvent) {
                     foreground = Theme.DANGER
@@ -95,22 +128,39 @@ class MailSetupWindow(
             })
             addActionListener { requestClose() }
         }
-        val closeRow = JPanel(BorderLayout()).apply {
+
+        val languageCombo = JComboBox(I18n.supported.toTypedArray()).apply {
+            font = Theme.LABEL_FONT
+            toolTipText = I18n.t("language.label")
+            renderer = LocaleRenderer()
+            selectedItem = I18n.locale
+        }
+        languageCombo.addActionListener {
+            if (switchingLocale) return@addActionListener
+            val locale = languageCombo.selectedItem as? Locale ?: return@addActionListener
+            switchLocale(locale)
+        }
+
+        val topControls = JPanel(FlowLayout(FlowLayout.RIGHT, 10, 0)).apply {
+            background = Theme.BACKGROUND
+            add(languageCombo)
+            add(closeButton)
+        }
+        val topBar = JPanel(BorderLayout()).apply {
             background = Theme.BACKGROUND
             border = EmptyBorder(8, 12, 0, 14)
-            add(closeButton, BorderLayout.EAST)
+            add(topControls, BorderLayout.EAST)
         }
-        enableWindowDrag(closeRow)
+        enableWindowDrag(topBar)
 
-        val appName = JLabel("IDX Mail Tool").apply {
+        val appName = JLabel(I18n.t("app.name")).apply {
             font = Theme.TITLE_FONT
             foreground = Theme.ACCENT
         }
-        val appSubtitle = JLabel("Setup").apply {
+        val appSubtitle = JLabel(I18n.t("app.subtitle")).apply {
             font = Theme.SUBTITLE_FONT
             foreground = Theme.MUTED
         }
-
         val sidebarHeader = JPanel().apply {
             layout = javax.swing.BoxLayout(this, javax.swing.BoxLayout.Y_AXIS)
             background = Theme.SURFACE
@@ -129,7 +179,7 @@ class MailSetupWindow(
             selectionBackground = Theme.ACCENT_DARK
             selectionForeground = Theme.TEXT
             cellRenderer = SectionRenderer()
-            selectedIndex = 0
+            selectedIndex = initialState.sectionIndex
             addListSelectionListener { event ->
                 if (event.valueIsAdjusting) return@addListSelectionListener
                 val selected = sectionList.selectedValue ?: return@addListSelectionListener
@@ -153,7 +203,7 @@ class MailSetupWindow(
 
         val rightPane = JPanel(BorderLayout()).apply {
             background = Theme.BACKGROUND
-            add(closeRow, BorderLayout.NORTH)
+            add(topBar, BorderLayout.NORTH)
             add(contentPanel, BorderLayout.CENTER)
         }
 
@@ -177,16 +227,6 @@ class MailSetupWindow(
         setLocationRelativeTo(null)
     }
 
-    private fun loadAccount() {
-        val entry = configuration.accounts.entries.firstOrNull()
-        val account = entry?.value ?: AccountProperties()
-        originalAccountName = entry?.key
-        connectionPanel.accountName = entry?.key ?: "default"
-        connectionPanel.load(account)
-        rulesPanel.load(account)
-        retentionPanel.load(account)
-    }
-
     private fun currentAccount(): AccountProperties = AccountProperties().apply {
         connectionPanel.readInto(this)
         rulesPanel.readInto(this)
@@ -204,6 +244,25 @@ class MailSetupWindow(
         (contentPanel.layout as CardLayout).show(contentPanel, section.name)
     }
 
+    private fun switchLocale(locale: Locale) {
+        if (locale.language == I18n.locale.language) return
+        val state = SetupState(
+            originalAccountName,
+            savedAccountName,
+            savedAccount,
+            connectionPanel.accountName.ifEmpty { "default" },
+            currentAccount(),
+            SetupSection.entries.indexOf(currentSection)
+        )
+        val location = location
+        switchingLocale = true
+        I18n.locale = locale
+        val next = MailSetupWindow(configuration, connector, onSave, state)
+        next.setLocation(location)
+        next.isVisible = true
+        dispose()
+    }
+
     private fun saveConfiguration(): Boolean {
         val accountName = connectionPanel.accountName.ifEmpty { "default" }
         val account = currentAccount()
@@ -214,7 +273,7 @@ class MailSetupWindow(
             JOptionPane.showMessageDialog(
                 this,
                 ex.message,
-                "Invalid configuration",
+                I18n.t("save.invalid.title"),
                 JOptionPane.WARNING_MESSAGE
             )
             return false
@@ -232,7 +291,7 @@ class MailSetupWindow(
             savedAccount = account
             true
         } catch (ex: Exception) {
-            JOptionPane.showMessageDialog(this, ex.message, "Could not save configuration", JOptionPane.ERROR_MESSAGE)
+            JOptionPane.showMessageDialog(this, ex.message, I18n.t("save.error.title"), JOptionPane.ERROR_MESSAGE)
             false
         }
     }
@@ -246,11 +305,15 @@ class MailSetupWindow(
 
     private fun confirmApplyChanges(): Boolean {
         if (!isDirty()) return true
-        val options = arrayOf("Yes", "No", "Cancel")
+        val options = arrayOf(
+            I18n.t("unsaved.apply"),
+            I18n.t("unsaved.discard"),
+            I18n.t("unsaved.cancel")
+        )
         val choice = JOptionPane.showOptionDialog(
             this,
-            "Do you want to apply your changes before closing?",
-            "Unsaved changes",
+            I18n.t("unsaved.message"),
+            I18n.t("unsaved.title"),
             JOptionPane.DEFAULT_OPTION,
             JOptionPane.QUESTION_MESSAGE,
             null,
@@ -265,7 +328,7 @@ class MailSetupWindow(
     }
 
     private fun enableWindowDrag(component: Component) {
-        if (component is AbstractButton) return
+        if (component is AbstractButton || component is JComboBox<*>) return
         var origin: Point? = null
         component.addMouseListener(object : MouseAdapter() {
             override fun mousePressed(event: MouseEvent) {
@@ -288,6 +351,22 @@ class MailSetupWindow(
         }
     }
 
+    private class LocaleRenderer : DefaultListCellRenderer() {
+        override fun getListCellRendererComponent(
+            list: JList<*>?,
+            value: Any?,
+            index: Int,
+            isSelected: Boolean,
+            cellHasFocus: Boolean
+        ): Component {
+            super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+            if (value is Locale) {
+                text = I18n.displayName(value)
+            }
+            return this
+        }
+    }
+
     private class SectionRenderer : JPanel(BorderLayout()), ListCellRenderer<SetupSection> {
 
         private val titleLabel = JLabel().apply { font = Theme.SECTION_FONT }
@@ -306,8 +385,8 @@ class MailSetupWindow(
             isSelected: Boolean,
             cellHasFocus: Boolean
         ): Component {
-            titleLabel.text = value?.title.orEmpty()
-            descriptionLabel.text = value?.description.orEmpty()
+            titleLabel.text = value?.let { I18n.t(it.titleKey) }.orEmpty()
+            descriptionLabel.text = value?.let { I18n.t(it.descriptionKey) }.orEmpty()
             titleLabel.foreground = Theme.TEXT
             descriptionLabel.foreground = if (isSelected) Theme.TEXT else Theme.MUTED
             background = if (isSelected) Theme.ACCENT_DARK else Theme.SURFACE

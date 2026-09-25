@@ -6,10 +6,10 @@ import ch.frostnova.app.mailtool.gui.FormPanel
 import ch.frostnova.app.mailtool.gui.Theme
 import ch.frostnova.app.mailtool.gui.customizeDialog
 import ch.frostnova.app.mailtool.gui.formLabel
-import ch.frostnova.app.mailtool.gui.placeholder
 import ch.frostnova.app.mailtool.gui.primaryButton
 import ch.frostnova.app.mailtool.gui.secondaryButton
 import ch.frostnova.app.mailtool.gui.textField
+import ch.frostnova.app.mailtool.i18n.I18n
 import java.awt.BorderLayout
 import java.awt.Dialog.ModalityType
 import java.awt.Dimension
@@ -27,7 +27,11 @@ import javax.swing.JTextArea
  * Modal dialog to add or edit a single mail sorting rule.
  */
 class RuleDialog(owner: Window, private val rule: MailRule?) :
-    JDialog(owner, if (rule == null) "Add mail rule" else "Edit mail rule", ModalityType.APPLICATION_MODAL) {
+    JDialog(
+        owner,
+        I18n.t(if (rule == null) "rule.title.add" else "rule.title.edit"),
+        ModalityType.APPLICATION_MODAL
+    ) {
 
     private val sendersArea = JTextArea(rule?.senders?.joinToString("\n").orEmpty(), 4, 28).apply {
         font = Theme.LABEL_FONT
@@ -39,7 +43,7 @@ class RuleDialog(owner: Window, private val rule: MailRule?) :
         font = Theme.LABEL_FONT
         selectedItem = rule?.action ?: MailRuleAction.MOVE
     }
-    private val folderField = textField(24, "folder name").apply {
+    private val folderField = textField(24, I18n.t("rule.folder.placeholder")).apply {
         text = rule?.folder.orEmpty()
     }
 
@@ -50,7 +54,7 @@ class RuleDialog(owner: Window, private val rule: MailRule?) :
         defaultCloseOperation = DISPOSE_ON_CLOSE
         contentPane.background = Theme.BACKGROUND
 
-        val sendersLabel = formLabel("Senders").apply {
+        val sendersLabel = formLabel(I18n.t("rule.senders")).apply {
             border = BorderFactory.createEmptyBorder(0, 0, 4, 0)
         }
         val sendersPane = JScrollPane(sendersArea).apply {
@@ -61,8 +65,8 @@ class RuleDialog(owner: Window, private val rule: MailRule?) :
         }
 
         val form = FormPanel().apply {
-            row("Action", actionCombo)
-            row("Target folder", folderField)
+            row(I18n.t("rule.action"), actionCombo)
+            row(I18n.t("rule.folder"), folderField)
         }
 
         val sendersPanel = JPanel(BorderLayout()).apply {
@@ -78,10 +82,10 @@ class RuleDialog(owner: Window, private val rule: MailRule?) :
             add(form, BorderLayout.CENTER)
         }
 
-        val saveButton = primaryButton("Save") { onSave() }
+        val saveButton = primaryButton(I18n.t("common.save")) { onSave() }
         val buttonBar = JPanel(FlowLayout(FlowLayout.RIGHT, 10, 14)).apply {
             background = Theme.BACKGROUND
-            add(secondaryButton("Cancel") { dispose() })
+            add(secondaryButton(I18n.t("common.cancel")) { dispose() })
             add(saveButton)
         }
 
@@ -112,12 +116,22 @@ class RuleDialog(owner: Window, private val rule: MailRule?) :
         val folder = folderField.text.trim()
 
         if (senders.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Please provide at least one sender.", "Invalid rule", JOptionPane.WARNING_MESSAGE)
+            JOptionPane.showMessageDialog(
+                this,
+                I18n.t("rule.invalid.senders"),
+                I18n.t("rule.invalid.title"),
+                JOptionPane.WARNING_MESSAGE
+            )
             sendersArea.requestFocusInWindow()
             return
         }
         if (action != MailRuleAction.DELETE && folder.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Please provide a target folder.", "Invalid rule", JOptionPane.WARNING_MESSAGE)
+            JOptionPane.showMessageDialog(
+                this,
+                I18n.t("rule.invalid.folder"),
+                I18n.t("rule.invalid.title"),
+                JOptionPane.WARNING_MESSAGE
+            )
             folderField.requestFocusInWindow()
             return
         }

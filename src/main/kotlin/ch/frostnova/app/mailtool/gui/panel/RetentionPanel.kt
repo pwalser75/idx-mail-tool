@@ -6,9 +6,13 @@ import ch.frostnova.app.mailtool.gui.Theme
 import ch.frostnova.app.mailtool.gui.TooltipCellRenderer
 import ch.frostnova.app.mailtool.gui.card
 import ch.frostnova.app.mailtool.gui.dialog.RetentionDialog
+import ch.frostnova.app.mailtool.gui.editIcon
+import ch.frostnova.app.mailtool.gui.plusIcon
 import ch.frostnova.app.mailtool.gui.primaryButton
 import ch.frostnova.app.mailtool.gui.secondaryButton
 import ch.frostnova.app.mailtool.gui.sectionHeader
+import ch.frostnova.app.mailtool.gui.trashIcon
+import ch.frostnova.app.mailtool.i18n.I18n
 import java.awt.BorderLayout
 import java.awt.FlowLayout
 import java.awt.event.ActionEvent
@@ -68,9 +72,9 @@ class RetentionPanel : JPanel(BorderLayout()), SetupPanel {
         val toolbar = JPanel(FlowLayout(FlowLayout.LEADING, 10, 14)).apply {
             background = Theme.SURFACE
             border = EmptyBorder(0, 20, 0, 20)
-            add(primaryButton("Add retention rule") { addSetting() })
-            add(secondaryButton("Edit") { editSetting() })
-            add(secondaryButton("Remove") { removeSetting() })
+            add(primaryButton(I18n.t("retention.add"), plusIcon(Theme.ON_ACCENT)) { addSetting() })
+            add(secondaryButton(I18n.t("retention.edit"), editIcon(Theme.TEXT)) { editSetting() })
+            add(secondaryButton(I18n.t("retention.remove"), trashIcon(Theme.TEXT)) { removeSetting() })
         }
 
         val scrollPane = JScrollPane(table).apply {
@@ -84,10 +88,7 @@ class RetentionPanel : JPanel(BorderLayout()), SetupPanel {
             add(scrollPane, BorderLayout.CENTER)
         }
 
-        add(
-            sectionHeader("Data retention", "Automatically delete messages from folders after a given period."),
-            BorderLayout.NORTH
-        )
+        add(sectionHeader(I18n.t("retention.header"), I18n.t("retention.header.description")), BorderLayout.NORTH)
         add(card(body), BorderLayout.CENTER)
     }
 
@@ -113,7 +114,7 @@ class RetentionPanel : JPanel(BorderLayout()), SetupPanel {
     private fun editSetting() {
         val index = table.selectedRow
         if (index < 0) {
-            JOptionPane.showMessageDialog(this, "Please select a retention rule to edit.", "No rule selected", JOptionPane.INFORMATION_MESSAGE)
+            JOptionPane.showMessageDialog(this, I18n.t("retention.edit.select"), I18n.t("retention.select.title"), JOptionPane.INFORMATION_MESSAGE)
             return
         }
         val dialog = RetentionDialog(windowOwner(), settings[index])
@@ -127,13 +128,13 @@ class RetentionPanel : JPanel(BorderLayout()), SetupPanel {
     private fun removeSetting() {
         val index = table.selectedRow
         if (index < 0) {
-            JOptionPane.showMessageDialog(this, "Please select a retention rule to remove.", "No rule selected", JOptionPane.INFORMATION_MESSAGE)
+            JOptionPane.showMessageDialog(this, I18n.t("retention.remove.select"), I18n.t("retention.select.title"), JOptionPane.INFORMATION_MESSAGE)
             return
         }
         val confirm = JOptionPane.showConfirmDialog(
             this,
-            "Remove the retention rule for folder \"${settings[index].folder}\"?",
-            "Remove rule",
+            I18n.t("retention.remove.confirm", settings[index].folder.orEmpty()),
+            I18n.t("retention.remove.title"),
             JOptionPane.YES_NO_OPTION,
             JOptionPane.WARNING_MESSAGE
         )
@@ -155,7 +156,10 @@ class RetentionPanel : JPanel(BorderLayout()), SetupPanel {
 
 private class RetentionTableModel : AbstractTableModel() {
 
-    private val columns = listOf("Folder", "Retention period")
+    private val columns = listOf(
+        I18n.t("retention.column.folder"),
+        I18n.t("retention.column.period")
+    )
     private var rows: List<DataRetentionSettings> = emptyList()
 
     fun setSettings(settings: List<DataRetentionSettings>) {
@@ -179,7 +183,7 @@ private class RetentionTableModel : AbstractTableModel() {
     private fun formatRetention(setting: DataRetentionSettings): String {
         val period = setting.retentionPeriod ?: return ""
         return if (period.hours == 0 && period.minutes == 0 && period.seconds == 0) {
-            "${period.days} ${if (period.days == 1) "day" else "days"}"
+            if (period.days == 1) I18n.t("retention.days.one") else I18n.t("retention.days.other", period.days)
         } else {
             period.toString()
         }
