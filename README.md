@@ -57,12 +57,17 @@ selected section is shown on the right.
 Sections:
 
 - **Connection**: configure protocol, host, port, TLS, username and password, and test the IMAP connectivity.
+- **Folders**: browse the folders on the server, showing each folder's message count, its retention period and the rules targeting it (refreshed over the connection).
 - **Mail rules**: add, edit and remove rules that move, copy or delete incoming messages based on the sender.
 - **Data retention**: add, edit and remove retention periods (in days) after which messages in a folder are deleted.
 
 The configuration is validated before it is written to `~/.idx-mail-tool.yaml`. The window is closed with the
 `✕` button in the top-right corner; if there are unsaved changes, you are asked whether to apply them
 (Yes / No / Cancel).
+
+When choosing a target folder for a rule or a retention policy, an editable drop-down offers the folders
+discovered on the server (loaded via the Folders section, or in the background on startup). Folder references are
+case-insensitive partial names, so you can also type a name that does not exist (yet) or no longer exists.
 
 ### Languages
 

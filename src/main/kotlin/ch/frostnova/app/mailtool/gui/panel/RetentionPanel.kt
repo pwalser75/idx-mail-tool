@@ -9,6 +9,7 @@ import ch.frostnova.app.mailtool.gui.dialog.RetentionDialog
 import ch.frostnova.app.mailtool.gui.editIcon
 import ch.frostnova.app.mailtool.gui.plusIcon
 import ch.frostnova.app.mailtool.gui.primaryButton
+import ch.frostnova.app.mailtool.gui.retentionLabel
 import ch.frostnova.app.mailtool.gui.secondaryButton
 import ch.frostnova.app.mailtool.gui.sectionHeader
 import ch.frostnova.app.mailtool.gui.trashIcon
@@ -34,7 +35,7 @@ import javax.swing.table.AbstractTableModel
 /**
  * Data retention section: define after how long messages in a folder may be deleted.
  */
-class RetentionPanel : JPanel(BorderLayout()), SetupPanel {
+class RetentionPanel(private val folderNames: () -> List<String>) : JPanel(BorderLayout()), SetupPanel {
 
     private val settings = mutableListOf<DataRetentionSettings>()
     private val model = RetentionTableModel()
@@ -102,8 +103,10 @@ class RetentionPanel : JPanel(BorderLayout()), SetupPanel {
         account.dataRetention = settings.toList()
     }
 
+    fun retentionSettings(): List<DataRetentionSettings> = settings.toList()
+
     private fun addSetting() {
-        val dialog = RetentionDialog(windowOwner(), null)
+        val dialog = RetentionDialog(windowOwner(), null, folderNames)
         dialog.isVisible = true
         dialog.result?.let {
             settings.add(it)
@@ -117,7 +120,7 @@ class RetentionPanel : JPanel(BorderLayout()), SetupPanel {
             JOptionPane.showMessageDialog(this, I18n.t("retention.edit.select"), I18n.t("retention.select.title"), JOptionPane.INFORMATION_MESSAGE)
             return
         }
-        val dialog = RetentionDialog(windowOwner(), settings[index])
+        val dialog = RetentionDialog(windowOwner(), settings[index], folderNames)
         dialog.isVisible = true
         dialog.result?.let {
             settings[index] = it
@@ -176,16 +179,7 @@ private class RetentionTableModel : AbstractTableModel() {
         val setting = rows[row]
         return when (column) {
             0 -> setting.folder.orEmpty()
-            else -> formatRetention(setting)
-        }
-    }
-
-    private fun formatRetention(setting: DataRetentionSettings): String {
-        val period = setting.retentionPeriod ?: return ""
-        return if (period.hours == 0 && period.minutes == 0 && period.seconds == 0) {
-            if (period.days == 1) I18n.t("retention.days.one") else I18n.t("retention.days.other", period.days)
-        } else {
-            period.toString()
+            else -> retentionLabel(setting.retentionPeriod)
         }
     }
 }

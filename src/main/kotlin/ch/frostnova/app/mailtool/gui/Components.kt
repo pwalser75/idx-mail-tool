@@ -13,6 +13,7 @@ import javax.swing.BorderFactory
 import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.JButton
+import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.Icon
@@ -206,6 +207,14 @@ fun JSpinner.commitValue(): Boolean = try {
 } catch (ex: ParseException) {
     false
 }
+
+/**
+ * Reads the current text of an editable combo box, including text the user typed
+ * but that was not yet committed to the model (e.g. because the Save button is
+ * not focusable). Falls back to the selected item.
+ */
+fun JComboBox<*>.editorText(): String =
+    (editor.item?.toString() ?: selectedItem?.toString()).orEmpty().trim()
 
 /**
  * Table cell renderer that shows the full cell value as a tooltip.

@@ -34,7 +34,7 @@ import javax.swing.table.AbstractTableModel
 /**
  * Mail sorting rules section: add, edit and remove rules for incoming messages.
  */
-class RulesPanel : JPanel(BorderLayout()), SetupPanel {
+class RulesPanel(private val folderNames: () -> List<String>) : JPanel(BorderLayout()), SetupPanel {
 
     private val rules = mutableListOf<MailRule>()
     private val model = RulesTableModel()
@@ -103,8 +103,10 @@ class RulesPanel : JPanel(BorderLayout()), SetupPanel {
         account.rules = rules.toList()
     }
 
+    fun mailRules(): List<MailRule> = rules.toList()
+
     private fun addRule() {
-        val dialog = RuleDialog(windowOwner(), null)
+        val dialog = RuleDialog(windowOwner(), null, folderNames)
         dialog.isVisible = true
         dialog.result?.let {
             rules.add(it)
@@ -118,7 +120,7 @@ class RulesPanel : JPanel(BorderLayout()), SetupPanel {
             JOptionPane.showMessageDialog(this, I18n.t("rules.edit.select"), I18n.t("rules.select.title"), JOptionPane.INFORMATION_MESSAGE)
             return
         }
-        val dialog = RuleDialog(windowOwner(), rules[index])
+        val dialog = RuleDialog(windowOwner(), rules[index], folderNames)
         dialog.isVisible = true
         dialog.result?.let {
             rules[index] = it

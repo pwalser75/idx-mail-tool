@@ -4,6 +4,7 @@ import ch.frostnova.app.mailtool.config.AccountProperties
 import ch.frostnova.app.mailtool.config.ConfigurationProperties
 import ch.frostnova.app.mailtool.connector.MailConnector
 import ch.frostnova.app.mailtool.gui.panel.ConnectionPanel
+import ch.frostnova.app.mailtool.gui.panel.FolderPanel
 import ch.frostnova.app.mailtool.gui.panel.RetentionPanel
 import ch.frostnova.app.mailtool.gui.panel.RulesPanel
 import ch.frostnova.app.mailtool.i18n.I18n
@@ -61,6 +62,7 @@ class MailSetupWindow private constructor(
 
     private enum class SetupSection(val titleKey: String, val descriptionKey: String) {
         CONNECTION("section.connection.title", "section.connection.description"),
+        FOLDERS("section.folders.title", "section.folders.description"),
         RULES("section.rules.title", "section.rules.description"),
         RETENTION("section.retention.title", "section.retention.description")
     }
@@ -83,9 +85,17 @@ class MailSetupWindow private constructor(
         }
     }
 
+    private val folderNamesProvider = FolderNamesProvider()
     private val connectionPanel = ConnectionPanel(connector)
-    private val rulesPanel = RulesPanel()
-    private val retentionPanel = RetentionPanel()
+    private val rulesPanel = RulesPanel { folderNamesProvider.names }
+    private val retentionPanel = RetentionPanel { folderNamesProvider.names }
+    private val folderPanel = FolderPanel(
+        connector,
+        { AccountProperties().apply { connectionPanel.readInto(this) } },
+        { retentionPanel.retentionSettings() },
+        { rulesPanel.mailRules() },
+        folderNamesProvider
+    )
 
     private val sections = SetupSection.entries.toTypedArray()
     private val sectionList = JList(sections)
@@ -190,6 +200,7 @@ class MailSetupWindow private constructor(
 
         contentPanel.background = Theme.BACKGROUND
         contentPanel.add(connectionPanel, SetupSection.CONNECTION.name)
+        contentPanel.add(folderPanel, SetupSection.FOLDERS.name)
         contentPanel.add(rulesPanel, SetupSection.RULES.name)
         contentPanel.add(retentionPanel, SetupSection.RETENTION.name)
 
@@ -225,6 +236,8 @@ class MailSetupWindow private constructor(
         minimumSize = Dimension(880, 520)
         size = Dimension(1040, 640)
         setLocationRelativeTo(null)
+
+        folderPanel.preload()
     }
 
     private fun currentAccount(): AccountProperties = AccountProperties().apply {
@@ -242,6 +255,9 @@ class MailSetupWindow private constructor(
 
     private fun showSection(section: SetupSection) {
         (contentPanel.layout as CardLayout).show(contentPanel, section.name)
+        if (section == SetupSection.FOLDERS) {
+            folderPanel.ensureLoaded()
+        }
     }
 
     private fun switchLocale(locale: Locale) {

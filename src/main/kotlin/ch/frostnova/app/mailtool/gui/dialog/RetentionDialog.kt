@@ -5,10 +5,10 @@ import ch.frostnova.app.mailtool.gui.FormPanel
 import ch.frostnova.app.mailtool.gui.Theme
 import ch.frostnova.app.mailtool.gui.commitValue
 import ch.frostnova.app.mailtool.gui.customizeDialog
+import ch.frostnova.app.mailtool.gui.editorText
 import ch.frostnova.app.mailtool.gui.formLabel
 import ch.frostnova.app.mailtool.gui.primaryButton
 import ch.frostnova.app.mailtool.gui.secondaryButton
-import ch.frostnova.app.mailtool.gui.textField
 import ch.frostnova.app.mailtool.i18n.I18n
 import ch.frostnova.app.mailtool.util.Interval
 import java.awt.BorderLayout
@@ -16,6 +16,7 @@ import java.awt.Dialog.ModalityType
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Window
+import javax.swing.JComboBox
 import javax.swing.JDialog
 import javax.swing.JOptionPane
 import javax.swing.JPanel
@@ -26,15 +27,26 @@ import javax.swing.SpinnerNumberModel
  * Modal dialog to add or edit a data retention setting for a folder.
  * The retention period is configured in days.
  */
-class RetentionDialog(owner: Window, private val setting: DataRetentionSettings?) :
+class RetentionDialog(
+    owner: Window,
+    private val setting: DataRetentionSettings?,
+    folderNames: () -> List<String>
+) :
     JDialog(
         owner,
         I18n.t(if (setting == null) "retention.title.add" else "retention.title.edit"),
         ModalityType.APPLICATION_MODAL
     ) {
 
-    private val folderField = textField(24, I18n.t("retention.folder.placeholder")).apply {
-        text = setting?.folder.orEmpty()
+    /**
+     * Editable so that an existing folder can be picked, while a free-text
+     * reference (which may not exist yet or anymore) is still allowed.
+     */
+    private val folderCombo = JComboBox(folderNames().toTypedArray()).apply {
+        isEditable = true
+        font = Theme.LABEL_FONT
+        toolTipText = I18n.t("folder.select.tooltip")
+        selectedItem = setting?.folder.orEmpty()
     }
     private val daysSpinner = JSpinner(
         SpinnerNumberModel(setting?.retentionPeriod?.days ?: 30, 1, 36500, 1)
@@ -56,7 +68,7 @@ class RetentionDialog(owner: Window, private val setting: DataRetentionSettings?
         }
 
         val form = FormPanel().apply {
-            row(I18n.t("retention.folder"), folderField)
+            row(I18n.t("retention.folder"), folderCombo)
             row(I18n.t("retention.period"), intervalPanel)
         }
 
@@ -77,7 +89,7 @@ class RetentionDialog(owner: Window, private val setting: DataRetentionSettings?
     }
 
     private fun onSave() {
-        val folder = folderField.text.trim()
+        val folder = folderCombo.editorText()
         if (folder.isEmpty()) {
             JOptionPane.showMessageDialog(
                 this,
@@ -85,7 +97,7 @@ class RetentionDialog(owner: Window, private val setting: DataRetentionSettings?
                 I18n.t("retention.invalid.title"),
                 JOptionPane.WARNING_MESSAGE
             )
-            folderField.requestFocusInWindow()
+            folderCombo.requestFocusInWindow()
             return
         }
 

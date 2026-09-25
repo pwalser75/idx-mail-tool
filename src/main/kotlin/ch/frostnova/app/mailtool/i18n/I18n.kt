@@ -26,7 +26,7 @@ object I18n {
      */
     fun t(key: String, vararg args: Any): String {
         val pattern = bundle.getString(key)
-        return if (args.isEmpty()) pattern else MessageFormat.format(pattern, *args)
+        return if (args.isEmpty()) pattern else MessageFormat(pattern, locale).format(args)
     }
 
     fun selectedLocale(): Locale = locale
