@@ -90,6 +90,26 @@ class RuleApplierTest {
     }
 
     @Test
+    fun `reports progress with the folder and total message count`() {
+        setUpMailbox()
+        every { inbox.messageCount } returns 2
+        every { archive.messageCount } returns 0
+        val progress = mutableListOf<ApplyProgress>()
+
+        RuleApplier(adapter, rules, emptyList()).run(
+            dryRun = true,
+            onAction = {},
+            onProgress = { progress.add(it) }
+        )
+
+        val updates = progress.filter { it.total > 0 }
+        assertThat(updates).hasSize(2)
+        assertThat(updates.map { it.folder }).containsOnly("Inbox")
+        assertThat(updates.map { it.processed }).containsExactly(1, 2)
+        assertThat(updates.map { it.total }).containsOnly(2)
+    }
+
+    @Test
     fun `apply performs the actions`() {
         setUpMailbox()
         val actions = mutableListOf<MailAction>()

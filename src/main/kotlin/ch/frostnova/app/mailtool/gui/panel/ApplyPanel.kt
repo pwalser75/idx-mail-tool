@@ -2,6 +2,7 @@ package ch.frostnova.app.mailtool.gui.panel
 
 import ch.frostnova.app.mailtool.apply.ActionOrigin
 import ch.frostnova.app.mailtool.apply.ActionType
+import ch.frostnova.app.mailtool.apply.ApplyProgress
 import ch.frostnova.app.mailtool.apply.MailAction
 import ch.frostnova.app.mailtool.apply.RuleApplier
 import ch.frostnova.app.mailtool.config.AccountProperties
@@ -131,17 +132,23 @@ class ApplyPanel(
         applyButton.isEnabled = false
         refreshButton.isEnabled = false
         progressBar.isVisible = true
+        progressBar.isIndeterminate = true
         statusLabel.foreground = Theme.MUTED
         statusLabel.text = I18n.t("apply.running")
 
-        object : SwingWorker<List<MailAction>, Void>() {
+        object : SwingWorker<List<MailAction>, ApplyProgress>() {
             override fun doInBackground(): List<MailAction> {
                 val actions = mutableListOf<MailAction>()
                 connector.connect(properties).use { adapter ->
                     RuleApplier(adapter, rulesSupplier(), retentionSupplier())
-                        .run(dryRun) { actions.add(it) }
+                        .run(dryRun, onProgress = { publish(it) }) { actions.add(it) }
                 }
                 return actions
+            }
+
+            override fun process(chunks: MutableList<ApplyProgress>) {
+                if (!loading) return
+                chunks.lastOrNull()?.let { showProgress(it) }
             }
 
             override fun done() {
@@ -178,6 +185,25 @@ class ApplyPanel(
         }.execute()
     }
 
+    private fun showProgress(progress: ApplyProgress) {
+        statusLabel.foreground = Theme.MUTED
+        if (progress.total <= 0) {
+            progressBar.isIndeterminate = true
+            statusLabel.text = I18n.t("apply.running")
+            return
+        }
+        progressBar.isIndeterminate = false
+        progressBar.maximum = progress.total
+        progressBar.value = progress.processed.coerceIn(0, progress.total)
+        statusLabel.text = progressText(progress)
+    }
+
+    private fun progressText(progress: ApplyProgress): String {
+        val base = I18n.t("apply.progress", progress.folder.orEmpty(), progress.processed, progress.total)
+        val subject = progress.message?.trim()?.takeIf { it.isNotEmpty() } ?: return base
+        return "$base · ${subject.take(PROGRESS_SUBJECT_LENGTH)}"
+    }
+
     /**
      * Runs a preview automatically only when the section is opened for the first
      * time, or when the connection/rules/retention changed since the last preview.
@@ -193,6 +219,10 @@ class ApplyPanel(
         ObjectMappers.json().writeValueAsString(
             listOf(connectionSupplier(), rulesSupplier(), retentionSupplier())
         )
+
+    private companion object {
+        const val PROGRESS_SUBJECT_LENGTH = 40
+    }
 }
 
 internal class ActionsTableModel : AbstractTableModel() {

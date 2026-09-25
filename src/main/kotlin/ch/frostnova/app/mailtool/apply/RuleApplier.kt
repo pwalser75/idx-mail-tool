@@ -23,6 +23,18 @@ enum class ActionOrigin {
 }
 
 /**
+ * Progress information emitted while applying rules: the folder/message currently
+ * being examined and how many items have been processed of the total known up
+ * front. A [total] of zero means the total is not known yet (indeterminate).
+ */
+data class ApplyProgress(
+    val folder: String? = null,
+    val message: String? = null,
+    val processed: Int = 0,
+    val total: Int = 0
+)
+
+/**
  * A single action that was (or would be) taken by the rule engine.
  */
 data class MailAction(
@@ -47,12 +59,30 @@ class RuleApplier(
     private val now: Instant = Instant.now()
 ) {
 
-    fun run(dryRun: Boolean, onAction: (MailAction) -> Unit) {
+    fun run(
+        dryRun: Boolean,
+        onProgress: (ApplyProgress) -> Unit = {},
+        onAction: (MailAction) -> Unit
+    ) {
+        onProgress(ApplyProgress())
         val folders = mailAdapter.listFolders()
         folders.forEach { folder -> open(folder, dryRun) }
         try {
-            applyMailRules(folders, dryRun, onAction)
-            applyRetention(folders, dryRun, onAction)
+            val total = folders.sumOf { messageCount(it) } + retentionTotal(folders)
+            var processed = 0
+            val progress: (Folder, Message) -> Unit = { folder, message ->
+                processed++
+                onProgress(
+                    ApplyProgress(
+                        folder = folder.fullName,
+                        message = runCatching { message.subject }.getOrNull(),
+                        processed = processed,
+                        total = total
+                    )
+                )
+            }
+            applyMailRules(folders, dryRun, onAction, progress)
+            applyRetention(folders, dryRun, onAction, progress)
         } finally {
             folders.forEach { folder ->
                 runCatching { if (folder.isOpen) folder.close(!dryRun) }
@@ -60,10 +90,16 @@ class RuleApplier(
         }
     }
 
-    private fun applyMailRules(folders: List<Folder>, dryRun: Boolean, onAction: (MailAction) -> Unit) {
+    private fun applyMailRules(
+        folders: List<Folder>,
+        dryRun: Boolean,
+        onAction: (MailAction) -> Unit,
+        onProgress: (Folder, Message) -> Unit
+    ) {
         folders.forEach { folder ->
             if (!folder.isOpen) return@forEach
             listMessages(folder).forEach messageLoop@{ message ->
+                onProgress(folder, message)
                 if (isDeleted(message)) return@messageLoop
                 val rule = firstMatchingRule(message) ?: return@messageLoop
                 val target = rule.folder?.let { firstMatchingFolder(folders, it) }
@@ -96,13 +132,19 @@ class RuleApplier(
         }
     }
 
-    private fun applyRetention(folders: List<Folder>, dryRun: Boolean, onAction: (MailAction) -> Unit) {
+    private fun applyRetention(
+        folders: List<Folder>,
+        dryRun: Boolean,
+        onAction: (MailAction) -> Unit,
+        onProgress: (Folder, Message) -> Unit
+    ) {
         retention.forEach { settings ->
             val period = settings.retentionPeriod ?: return@forEach
             val folderName = settings.folder ?: return@forEach
             val deleteBefore = now.minus(period.toDuration())
             val folder = firstMatchingFolder(folders, folderName) ?: return@forEach
             listMessages(folder).forEach retentionLoop@{ message ->
+                onProgress(folder, message)
                 if (isDeleted(message)) return@retentionLoop
                 val sentDate = runCatching { message.sentDate?.toInstant() }.getOrNull()
                 if (sentDate != null && sentDate.isBefore(deleteBefore)) {
@@ -144,6 +186,16 @@ class RuleApplier(
 
     private fun firstMatchingFolder(folders: Collection<Folder>, name: String): Folder? =
         folders.firstOrNull { folder -> folder.name.contains(name, ignoreCase = true) }
+
+    /** Best-effort message count of an open folder, used as the progress total. */
+    private fun messageCount(folder: Folder): Int =
+        runCatching { folder.messageCount }.getOrDefault(0)
+
+    private fun retentionTotal(folders: List<Folder>): Int =
+        retention.sumOf { settings ->
+            if (settings.retentionPeriod == null) return@sumOf 0
+            settings.folder?.let { firstMatchingFolder(folders, it) }?.let { messageCount(it) } ?: 0
+        }
 
     private fun action(
         type: ActionType,
