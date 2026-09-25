@@ -9,22 +9,28 @@ import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_BOLD
 import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_CYAN
 import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_GREEN
 import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_RED
+import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_YELLOW
 import ch.frostnova.app.mailtool.util.ansiFormat
 import kotlin.system.exitProcess
 
 fun main(vararg args: String) {
     printLogo()
-    if (args.size != 1) {
-        printUsage()
-        exitProcess(1)
-    }
     try {
-        val arg = args[0]
-        val command = command(arg) ?: throw IllegalArgumentException("Unknown command: $arg")
-        val configuration = readConfigProperties() ?: ConfigurationProperties()
+        val configuration = readConfigProperties()
+        val selectedCommand = if (configuration == null) {
+            println("No configuration found, starting setup ...".ansiFormat(ANSI_YELLOW))
+            Command.SETUP
+        } else {
+            if (args.size != 1) {
+                printUsage()
+                exitProcess(1)
+            }
+            val arg = args[0]
+            command(arg) ?: throw IllegalArgumentException("Unknown command: $arg")
+        }
         val connector = MailConnectorImpl()
         val console = StandardConsole()
-        MailTool(connector, configuration, console).run(command)
+        MailTool(connector, configuration ?: ConfigurationProperties(), console).run(selectedCommand)
 
     } catch (ex: Exception) {
         println("${ex.javaClass.simpleName.ansiFormat(ANSI_BOLD, ANSI_RED)} - ${ex.message?.ansiFormat(ANSI_RED)}")

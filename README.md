@@ -12,6 +12,7 @@ Features:
 - Listing folders and mails of an IMAP account
 - Defining retention policies for IMAP folders (after which time messages should be deleted in a folder)
 - Defining rules to sort incoming messages into folders, and apply these rules.
+- A dark-themed Swing setup UI to configure the connection, the mail rules and the data retention policies.
 
 ## Usage
 
@@ -20,6 +21,9 @@ The generated shadow JAR file is an executable, self-contained Java command line
 ```bash
 java -jar target/idx-mail-tool.jar
 ```
+
+If no configuration file exists yet (`~/.idx-mail-tool.yaml`), the tool automatically starts the `setup` GUI,
+even when no command argument is provided.
 
 If you run it with an unknown command (e.g. `help`) or the incorrect number of arguments, it will reveal its usage
 information:
@@ -34,9 +38,31 @@ Commands:
 - setup: Setup IMAP connector
 - folders: List all folders
 - mails: List all mails
+- senders: List all senders
 - rules: List all rules
 - apply: Apply all rules
 ```
+
+## Setup UI
+
+Run the setup UI with:
+
+```bash
+java -jar target/idx-mail-tool.jar setup
+```
+
+The window uses a split view: the configuration sections are listed on the left, and the editor for the
+selected section is shown on the right.
+
+Sections:
+
+- **Connection**: configure protocol, host, port, TLS, username and password, and test the IMAP connectivity.
+- **Mail rules**: add, edit and remove rules that move, copy or delete incoming messages based on the sender.
+- **Data retention**: add, edit and remove retention periods (in days) after which messages in a folder are deleted.
+
+The configuration is validated before it is written to `~/.idx-mail-tool.yaml`. The window is closed with the
+`✕` button in the top-right corner; if there are unsaved changes, you are asked whether to apply them
+(Yes / No / Cancel).
 
 ## Configuration
 

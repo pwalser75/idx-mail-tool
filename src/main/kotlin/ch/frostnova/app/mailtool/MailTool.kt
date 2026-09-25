@@ -12,8 +12,10 @@ import ch.frostnova.app.mailtool.config.MailRule
 import ch.frostnova.app.mailtool.config.MailRuleAction.COPY
 import ch.frostnova.app.mailtool.config.MailRuleAction.DELETE
 import ch.frostnova.app.mailtool.config.MailRuleAction.MOVE
+import ch.frostnova.app.mailtool.config.writeConfigProperties
 import ch.frostnova.app.mailtool.connector.Console
 import ch.frostnova.app.mailtool.connector.MailConnector
+import ch.frostnova.app.mailtool.gui.MailSetupWindow
 import ch.frostnova.app.mailtool.util.AnsiEscapeCode
 import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_BLUE
 import ch.frostnova.app.mailtool.util.AnsiEscapeCode.ANSI_BOLD
@@ -59,7 +61,7 @@ class MailTool(
     }
 
     private fun setup() {
-        console.output("Setup: not yet implemented")
+        MailSetupWindow.open(configuration, connector) { writeConfigProperties(it) }
     }
 
     private fun listFolders() {

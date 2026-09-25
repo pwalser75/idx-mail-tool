@@ -39,11 +39,12 @@ class AccountProperties {
     @NotBlank
     var password: String? = null
 
-    var dataRetention: List<@Valid DataRetentionSettings> = emptyList()
+    @Valid
+    var dataRetention: List<DataRetentionSettings> = emptyList()
 
-    var rules: List<@Valid MailRule> = emptyList()
+    @Valid
+    var rules: List<MailRule> = emptyList()
 }
-
 class DataRetentionSettings {
     @NotBlank
     var folder: String? = null
@@ -71,11 +72,19 @@ enum class MailRuleAction {
     DELETE
 }
 
-fun readConfigProperties(): ConfigurationProperties? {
+fun configFile(): File {
     val userHome = System.getProperty("user.home")
-    val configFile = File(File(userHome), ".idx-mail-tool.yaml")
+    return File(File(userHome), ".idx-mail-tool.yaml")
+}
+
+fun readConfigProperties(): ConfigurationProperties? {
+    val configFile = configFile()
     if (!configFile.exists()) {
         return null
     }
     return ObjectMappers.forResource(configFile).readValue(configFile, ConfigurationProperties::class.java)
+}
+
+fun writeConfigProperties(configuration: ConfigurationProperties) {
+    ObjectMappers.forResource(configFile()).writeValue(configFile(), configuration)
 }
