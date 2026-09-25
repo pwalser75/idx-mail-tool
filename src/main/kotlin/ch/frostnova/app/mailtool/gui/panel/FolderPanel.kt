@@ -24,6 +24,8 @@ import javax.swing.JPanel
 import javax.swing.JScrollPane
 import javax.swing.JTable
 import javax.swing.ListSelectionModel
+import javax.swing.RowSorter
+import javax.swing.SortOrder
 import javax.swing.SwingWorker
 import javax.swing.border.EmptyBorder
 import javax.swing.table.AbstractTableModel
@@ -81,6 +83,8 @@ class FolderPanel(
         table.columnModel.getColumn(1).preferredWidth = 100
         table.columnModel.getColumn(2).preferredWidth = 150
         table.columnModel.getColumn(3).preferredWidth = 320
+        table.autoCreateRowSorter = true
+        table.rowSorter.sortKeys = listOf(RowSorter.SortKey(0, SortOrder.ASCENDING))
 
         val toolbar = JPanel(FlowLayout(FlowLayout.LEADING, 12, 14)).apply {
             background = Theme.SURFACE
@@ -272,14 +276,22 @@ private class FoldersTableModel : AbstractTableModel() {
     override fun getColumnName(column: Int): String = columns[column]
     override fun isCellEditable(row: Int, column: Int): Boolean = false
 
+    override fun getColumnClass(columnIndex: Int): Class<*> =
+        if (columnIndex == 1) Int::class.javaObjectType else String::class.java
+
     override fun getValueAt(row: Int, column: Int): Any {
         val folder = rows[row]
         return when (column) {
             0 -> folder.displayName
-            1 -> folder.messageCount?.toString() ?: "\u2013"
+            1 -> folder.messageCount ?: UNKNOWN_COUNT
             2 -> folder.retention
             else -> folder.rules
         }
+    }
+
+    companion object {
+        /** Sentinel for folders whose message count is not available. */
+        const val UNKNOWN_COUNT = -1
     }
 }
 
@@ -294,8 +306,10 @@ private class FoldersCellRenderer : javax.swing.table.DefaultTableCellRenderer()
     ): java.awt.Component {
         val component = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column)
         if (component is javax.swing.JLabel) {
+            val display = if (column == 1 && value is Int && value < 0) "\u2013" else value?.toString().orEmpty()
+            component.text = display
+            component.toolTipText = display
             component.border = EmptyBorder(0, 8, 0, 8)
-            component.toolTipText = value?.toString()
             component.horizontalAlignment =
                 if (column == 1) javax.swing.SwingConstants.RIGHT else javax.swing.SwingConstants.LEFT
         }

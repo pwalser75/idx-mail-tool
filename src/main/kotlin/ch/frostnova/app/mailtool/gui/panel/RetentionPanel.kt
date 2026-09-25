@@ -28,6 +28,8 @@ import javax.swing.JScrollPane
 import javax.swing.JTable
 import javax.swing.KeyStroke
 import javax.swing.ListSelectionModel
+import javax.swing.RowSorter
+import javax.swing.SortOrder
 import javax.swing.SwingUtilities
 import javax.swing.border.EmptyBorder
 import javax.swing.table.AbstractTableModel
@@ -60,6 +62,8 @@ class RetentionPanel(private val folderNames: () -> List<String>) : JPanel(Borde
         }
         table.columnModel.getColumn(0).preferredWidth = 320
         table.columnModel.getColumn(1).preferredWidth = 180
+        table.autoCreateRowSorter = true
+        table.rowSorter.sortKeys = listOf(RowSorter.SortKey(0, SortOrder.ASCENDING))
         table.addMouseListener(object : MouseAdapter() {
             override fun mouseClicked(event: MouseEvent) {
                 if (event.clickCount == 2) editSetting()
@@ -115,11 +119,12 @@ class RetentionPanel(private val folderNames: () -> List<String>) : JPanel(Borde
     }
 
     private fun editSetting() {
-        val index = table.selectedRow
-        if (index < 0) {
+        val viewRow = table.selectedRow
+        if (viewRow < 0) {
             JOptionPane.showMessageDialog(this, I18n.t("retention.edit.select"), I18n.t("retention.select.title"), JOptionPane.INFORMATION_MESSAGE)
             return
         }
+        val index = table.convertRowIndexToModel(viewRow)
         val dialog = RetentionDialog(windowOwner(), settings[index], folderNames)
         dialog.isVisible = true
         dialog.result?.let {
@@ -129,11 +134,12 @@ class RetentionPanel(private val folderNames: () -> List<String>) : JPanel(Borde
     }
 
     private fun removeSetting() {
-        val index = table.selectedRow
-        if (index < 0) {
+        val viewRow = table.selectedRow
+        if (viewRow < 0) {
             JOptionPane.showMessageDialog(this, I18n.t("retention.remove.select"), I18n.t("retention.select.title"), JOptionPane.INFORMATION_MESSAGE)
             return
         }
+        val index = table.convertRowIndexToModel(viewRow)
         val confirm = JOptionPane.showConfirmDialog(
             this,
             I18n.t("retention.remove.confirm", settings[index].folder.orEmpty()),
@@ -150,7 +156,10 @@ class RetentionPanel(private val folderNames: () -> List<String>) : JPanel(Borde
     private fun refresh(selectRow: Int = -1) {
         model.setSettings(settings)
         if (selectRow in settings.indices) {
-            table.setRowSelectionInterval(selectRow, selectRow)
+            val viewRow = table.convertRowIndexToView(selectRow)
+            if (viewRow >= 0) {
+                table.setRowSelectionInterval(viewRow, viewRow)
+            }
         }
     }
 

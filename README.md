@@ -63,7 +63,8 @@ Sections:
 
 The configuration is validated before it is written to `~/.idx-mail-tool.yaml`. The window is closed with the
 `✕` button in the top-right corner; if there are unsaved changes, you are asked whether to apply them
-(Yes / No / Cancel).
+(Yes / No / Cancel). The undecorated window can be moved by dragging the sidebar header and resized by dragging
+its edges or corners.
 
 When choosing a target folder for a rule or a retention policy, an editable drop-down offers the folders
 discovered on the server (loaded via the Folders section, or in the background on startup). Folder references are

@@ -112,6 +112,7 @@ class MailSetupWindow private constructor(
         isUndecorated = true
         defaultCloseOperation = DO_NOTHING_ON_CLOSE
         contentPane.background = Theme.BACKGROUND
+        rootPane.border = BorderFactory.createLineBorder(Theme.BORDER, 1)
 
         connectionPanel.accountName = initialState.accountName
         connectionPanel.load(initialState.account)
@@ -220,7 +221,7 @@ class MailSetupWindow private constructor(
 
         val splitPane = JSplitPane(JSplitPane.HORIZONTAL_SPLIT, sidebar, rightPane).apply {
             border = BorderFactory.createEmptyBorder()
-            dividerSize = 1
+            dividerSize = 4
             resizeWeight = 0.0
             dividerLocation = 260
         }
@@ -237,6 +238,8 @@ class MailSetupWindow private constructor(
         size = Dimension(1040, 640)
         setLocationRelativeTo(null)
 
+        rootPane.glassPane = WindowResizer(this)
+        rootPane.glassPane.isVisible = true
         folderPanel.preload()
     }
 

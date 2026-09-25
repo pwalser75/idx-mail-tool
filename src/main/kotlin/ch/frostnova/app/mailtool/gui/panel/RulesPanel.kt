@@ -27,6 +27,8 @@ import javax.swing.JScrollPane
 import javax.swing.JTable
 import javax.swing.KeyStroke
 import javax.swing.ListSelectionModel
+import javax.swing.RowSorter
+import javax.swing.SortOrder
 import javax.swing.SwingUtilities
 import javax.swing.border.EmptyBorder
 import javax.swing.table.AbstractTableModel
@@ -60,6 +62,8 @@ class RulesPanel(private val folderNames: () -> List<String>) : JPanel(BorderLay
         table.columnModel.getColumn(0).preferredWidth = 320
         table.columnModel.getColumn(1).preferredWidth = 90
         table.columnModel.getColumn(2).preferredWidth = 180
+        table.autoCreateRowSorter = true
+        table.rowSorter.sortKeys = listOf(RowSorter.SortKey(0, SortOrder.ASCENDING))
         table.addMouseListener(object : MouseAdapter() {
             override fun mouseClicked(event: MouseEvent) {
                 if (event.clickCount == 2) editRule()
@@ -115,11 +119,12 @@ class RulesPanel(private val folderNames: () -> List<String>) : JPanel(BorderLay
     }
 
     private fun editRule() {
-        val index = table.selectedRow
-        if (index < 0) {
+        val viewRow = table.selectedRow
+        if (viewRow < 0) {
             JOptionPane.showMessageDialog(this, I18n.t("rules.edit.select"), I18n.t("rules.select.title"), JOptionPane.INFORMATION_MESSAGE)
             return
         }
+        val index = table.convertRowIndexToModel(viewRow)
         val dialog = RuleDialog(windowOwner(), rules[index], folderNames)
         dialog.isVisible = true
         dialog.result?.let {
@@ -129,11 +134,12 @@ class RulesPanel(private val folderNames: () -> List<String>) : JPanel(BorderLay
     }
 
     private fun removeRule() {
-        val index = table.selectedRow
-        if (index < 0) {
+        val viewRow = table.selectedRow
+        if (viewRow < 0) {
             JOptionPane.showMessageDialog(this, I18n.t("rules.remove.select"), I18n.t("rules.select.title"), JOptionPane.INFORMATION_MESSAGE)
             return
         }
+        val index = table.convertRowIndexToModel(viewRow)
         val confirm = JOptionPane.showConfirmDialog(
             this,
             I18n.t("rules.remove.confirm", rules[index].senders.joinToString(", ")),
@@ -150,7 +156,10 @@ class RulesPanel(private val folderNames: () -> List<String>) : JPanel(BorderLay
     private fun refresh(selectRow: Int = -1) {
         model.setRules(rules)
         if (selectRow in rules.indices) {
-            table.setRowSelectionInterval(selectRow, selectRow)
+            val viewRow = table.convertRowIndexToView(selectRow)
+            if (viewRow >= 0) {
+                table.setRowSelectionInterval(viewRow, viewRow)
+            }
         }
     }
 
