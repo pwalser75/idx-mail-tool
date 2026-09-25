@@ -17,16 +17,23 @@ fun main(vararg args: String) {
     printLogo()
     try {
         val configuration = readConfigProperties()
-        val selectedCommand = if (configuration == null) {
-            println("No configuration found, starting setup ...".ansiFormat(ANSI_YELLOW))
-            Command.SETUP
-        } else {
-            if (args.size != 1) {
+        val requestedCommand = when {
+            args.isEmpty() -> Command.GUI
+            args.size == 1 -> command(args[0]) ?: throw IllegalArgumentException("Unknown command: ${args[0]}")
+            else -> {
                 printUsage()
                 exitProcess(1)
             }
-            val arg = args[0]
-            command(arg) ?: throw IllegalArgumentException("Unknown command: $arg")
+        }
+        val setupRequired = configuration == null || !hasConnectionSettings(configuration)
+        val selectedCommand = if (setupRequired) {
+            println(
+                (if (configuration == null) "No configuration found" else "No connection configured")
+                    .plus(", opening setup ...").ansiFormat(ANSI_YELLOW)
+            )
+            Command.SETUP
+        } else {
+            requestedCommand
         }
         val connector = MailConnectorImpl()
         val console = StandardConsole()
@@ -39,6 +46,11 @@ fun main(vararg args: String) {
         exitProcess(1)
     }
 }
+
+private fun hasConnectionSettings(configuration: ConfigurationProperties): Boolean =
+    configuration.accounts.values.any {
+        !it.host.isNullOrBlank() && !it.username.isNullOrBlank() && !it.password.isNullOrBlank()
+    }
 
 private fun printLogo() {
     println("> IDX Mail Tool".trimIndent().ansiFormat(ANSI_BOLD, ANSI_BLUE))

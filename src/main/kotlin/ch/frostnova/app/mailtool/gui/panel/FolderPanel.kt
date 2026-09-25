@@ -26,7 +26,6 @@ import java.awt.Dimension
 import java.awt.FlowLayout
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import java.util.regex.Pattern
 import javax.swing.BorderFactory
 import javax.swing.JOptionPane
@@ -157,6 +156,11 @@ class FolderPanel(
         }
     }
 
+    /** Marks the current folder data as stale, e.g. after rules were applied. */
+    fun markStale() {
+        loaded = false
+    }
+
     fun refresh() {
         if (loading) return
         val properties = connectionSupplier()
@@ -242,7 +246,7 @@ class FolderPanel(
     }
 
     private fun currentTime(): String =
-        LocalTime.now().format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(I18n.locale))
+        LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
 
     private fun applyFilter() {
         val sorter = table.rowSorter as? TableRowSorter<*> ?: return

@@ -11,10 +11,10 @@ import javax.swing.border.EmptyBorder
 import javax.swing.table.DefaultTableCellRenderer
 
 /**
- * Table cell renderer with zebra striping, hover highlight, tooltips and
- * right-alignment for integer columns.
+ * Table cell renderer with row hover highlight, tooltips and right-alignment
+ * for integer columns.
  */
-open class StripedCellRenderer : DefaultTableCellRenderer() {
+open class TableRowRenderer : DefaultTableCellRenderer() {
 
     var hoverRow: Int = -1
 
@@ -31,7 +31,6 @@ open class StripedCellRenderer : DefaultTableCellRenderer() {
             component.background = when {
                 isSelected -> table?.selectionBackground ?: Theme.ACCENT_DARK
                 row == hoverRow -> Theme.HOVER
-                row % 2 == 1 -> Theme.SURFACE_ALT
                 else -> table?.background ?: Theme.SURFACE
             }
             component.foreground = if (isSelected) table?.selectionForeground ?: Theme.TEXT else Theme.TEXT
@@ -52,10 +51,10 @@ open class StripedCellRenderer : DefaultTableCellRenderer() {
 }
 
 /**
- * Installs zebra striping and row hover highlighting on the table.
+ * Installs row hover highlighting on the table.
  */
 fun JTable.enableRowStyling() {
-    val renderer = StripedCellRenderer()
+    val renderer = TableRowRenderer()
     setDefaultRenderer(Any::class.java, renderer)
 
     addMouseMotionListener(object : MouseMotionAdapter() {

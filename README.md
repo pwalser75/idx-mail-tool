@@ -29,15 +29,17 @@ Creates the executable, self-contained JAR at `target/idx-mail-tool.jar`.
 ## Usage
 
 ```bash
-java -jar target/idx-mail-tool.jar <command>
+java -jar target/idx-mail-tool.jar [command]
 ```
 
-| Command | Description                                                              |
-|---------|--------------------------------------------------------------------------|
-| `setup` | Open the setup UI (started automatically when no configuration exists)   |
-| `apply` | Apply all rules and retention policies                                   |
+| Command | Description                                                    |
+|---------|----------------------------------------------------------------|
+| `gui`   | Open the GUI (default when no command is given)                |
+| `setup` | Open the GUI in the connection setup section                   |
+| `apply` | Apply all rules and retention policies                         |
 
-Running without a valid command prints the usage information.
+When no configuration exists yet, or the configured account has no connection settings, the GUI opens on the
+setup section automatically. Running with an unknown command prints the usage information.
 
 ## Configuration
 

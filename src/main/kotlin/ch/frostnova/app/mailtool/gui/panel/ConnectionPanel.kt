@@ -21,7 +21,6 @@ import java.awt.Dimension
 import java.awt.FlowLayout
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import javax.swing.JCheckBox
 import javax.swing.JComboBox
 import javax.swing.JLabel
@@ -182,7 +181,7 @@ class ConnectionPanel(private val connector: MailConnector) : JPanel(BorderLayou
     }
 
     private fun currentTime(): String =
-        LocalTime.now().format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(I18n.locale))
+        LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
 
     private enum class Status(val key: String, val background: Color, val foreground: Color, val dot: Color) {
         UNTESTED("connection.status.untested", Theme.SURFACE_ALT, Theme.MUTED, Theme.MUTED),

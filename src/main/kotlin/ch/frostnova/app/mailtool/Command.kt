@@ -1,7 +1,8 @@
 package ch.frostnova.app.mailtool
 
 enum class Command(val description: String) {
-    SETUP("Setup IMAP connector"),
+    GUI("Open the GUI"),
+    SETUP("Open the GUI in the setup section"),
     APPLY("Apply all rules"),
 }
 

@@ -18,7 +18,8 @@ enum class IconType {
     LINK,
     FOLDER,
     FILTER,
-    CLOCK
+    CLOCK,
+    PLAY
 }
 
 /**
@@ -50,6 +51,7 @@ class VectorIcon(
                 IconType.FOLDER -> drawFolder(g)
                 IconType.FILTER -> drawFilter(g)
                 IconType.CLOCK -> drawClock(g)
+                IconType.PLAY -> drawPlay(g)
             }
         } finally {
             g.dispose()
@@ -156,6 +158,17 @@ class VectorIcon(
         g.draw(Line2D.Float(8f, 8f, 8f, 4.7f))
         g.draw(Line2D.Float(8f, 8f, 10.6f, 9.4f))
     }
+
+    /** A play triangle, representing running the rules. */
+    private fun drawPlay(g: Graphics2D) {
+        val path = Path2D.Float().apply {
+            moveTo(4.6f, 3.2f)
+            lineTo(13.0f, 8.0f)
+            lineTo(4.6f, 12.8f)
+            closePath()
+        }
+        g.fill(path)
+    }
 }
 
 fun plusIcon(color: Color, size: Int = 16): Icon = VectorIcon(IconType.PLUS, color, size)
@@ -163,3 +176,5 @@ fun plusIcon(color: Color, size: Int = 16): Icon = VectorIcon(IconType.PLUS, col
 fun editIcon(color: Color, size: Int = 16): Icon = VectorIcon(IconType.EDIT, color, size)
 
 fun trashIcon(color: Color, size: Int = 16): Icon = VectorIcon(IconType.TRASH, color, size)
+
+fun playIcon(color: Color, size: Int = 16): Icon = VectorIcon(IconType.PLAY, color, size)

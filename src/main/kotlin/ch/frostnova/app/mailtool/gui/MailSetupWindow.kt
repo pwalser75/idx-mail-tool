@@ -3,6 +3,7 @@ package ch.frostnova.app.mailtool.gui
 import ch.frostnova.app.mailtool.config.AccountProperties
 import ch.frostnova.app.mailtool.config.ConfigurationProperties
 import ch.frostnova.app.mailtool.connector.MailConnector
+import ch.frostnova.app.mailtool.gui.panel.ApplyPanel
 import ch.frostnova.app.mailtool.gui.panel.ConnectionPanel
 import ch.frostnova.app.mailtool.gui.panel.FolderPanel
 import ch.frostnova.app.mailtool.gui.panel.RetentionPanel
@@ -63,9 +64,10 @@ class MailSetupWindow private constructor(
         configuration: ConfigurationProperties,
         connector: MailConnector,
         onSave: (ConfigurationProperties) -> Unit
-    ) : this(configuration, connector, onSave, SetupState.initial(configuration))
+    ) : this(configuration, connector, onSave, SetupState.initial(configuration, null))
 
     private enum class SetupSection(val titleKey: String, val descriptionKey: String, val icon: IconType) {
+        APPLY("section.apply.title", "section.apply.description", IconType.PLAY),
         CONNECTION("section.connection.title", "section.connection.description", IconType.LINK),
         FOLDERS("section.folders.title", "section.folders.description", IconType.FOLDER),
         RULES("section.rules.title", "section.rules.description", IconType.FILTER),
@@ -81,11 +83,12 @@ class MailSetupWindow private constructor(
         val sectionIndex: Int
     ) {
         companion object {
-            fun initial(configuration: ConfigurationProperties): SetupState {
+            fun initial(configuration: ConfigurationProperties, section: SetupSection?): SetupState {
                 val entry = configuration.accounts.entries.firstOrNull()
                 val account = entry?.value ?: AccountProperties()
                 val name = entry?.key ?: "default"
-                return SetupState(entry?.key, name, account, name, account, 0)
+                val index = section?.let { SetupSection.entries.indexOf(it) } ?: 0
+                return SetupState(entry?.key, name, account, name, account, index)
             }
         }
     }
@@ -100,6 +103,13 @@ class MailSetupWindow private constructor(
         { retentionPanel.retentionSettings() },
         { rulesPanel.mailRules() },
         folderNamesProvider
+    )
+    private val applyPanel = ApplyPanel(
+        connector,
+        { AccountProperties().apply { connectionPanel.readInto(this) } },
+        { rulesPanel.mailRules() },
+        { retentionPanel.retentionSettings() },
+        { folderPanel.markStale() }
     )
 
     private val sections = SetupSection.entries.toTypedArray()
@@ -212,6 +222,7 @@ class MailSetupWindow private constructor(
         }
 
         contentPanel.background = Theme.BACKGROUND
+        contentPanel.add(applyPanel, SetupSection.APPLY.name)
         contentPanel.add(connectionPanel, SetupSection.CONNECTION.name)
         contentPanel.add(folderPanel, SetupSection.FOLDERS.name)
         contentPanel.add(rulesPanel, SetupSection.RULES.name)
@@ -249,6 +260,10 @@ class MailSetupWindow private constructor(
         minimumSize = Dimension(880, 520)
         size = Dimension(1040, 640)
         setLocationRelativeTo(null)
+
+        if (currentSection == SetupSection.APPLY) {
+            SwingUtilities.invokeLater { applyPanel.autoPreview() }
+        }
 
         rootPane.glassPane = WindowResizer(this)
         rootPane.glassPane.isVisible = true
@@ -304,8 +319,10 @@ class MailSetupWindow private constructor(
 
     private fun showSection(section: SetupSection) {
         (contentPanel.layout as CardLayout).show(contentPanel, section.name)
-        if (section == SetupSection.FOLDERS) {
-            folderPanel.ensureLoaded()
+        when (section) {
+            SetupSection.FOLDERS -> folderPanel.ensureLoaded()
+            SetupSection.APPLY -> applyPanel.autoPreview()
+            else -> Unit
         }
     }
 
@@ -472,15 +489,18 @@ class MailSetupWindow private constructor(
     companion object {
         /**
          * Installs the dark theme and shows the setup window on the Swing event dispatch thread.
+         * When [openSetup] is true, the window opens on the connection setup section.
          */
         fun open(
             configuration: ConfigurationProperties,
             connector: MailConnector,
+            openSetup: Boolean = false,
             onSave: (ConfigurationProperties) -> Unit
         ) {
             SwingUtilities.invokeLater {
                 Theme.install()
-                MailSetupWindow(configuration, connector, onSave).isVisible = true
+                val section = if (openSetup) SetupSection.CONNECTION else null
+                MailSetupWindow(configuration, connector, onSave, SetupState.initial(configuration, section)).isVisible = true
             }
         }
     }
